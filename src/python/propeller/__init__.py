@@ -28,7 +28,7 @@ def read_angular_pos(ip: str) -> float:
     return position / 10.0
 
 
-def set_angular_pos(pos: int, speed: int=10000, current: int=20000, acc: int=1000, decc: int=1000):
+def set_angular_pos(pos: int, speed: int=10000, current: int=20000, acc: int=400, decc: int=400):
     return f'<control pos="{pos}" speed="{speed}" current="{current}" mode="129" acc="{acc}" decc="{decc}" />'
 
 
@@ -91,15 +91,27 @@ def read_z() -> float:
 def main():
     #
     move_z(0)
-    print(read_z())
+    # print(read_z())
     sleep(5)
-    move_z(10)
-    print(read_z())
-    sleep(5)
-    move_z(100)
-    print(read_z())
-    sleep(5)
-    print(read_z())
+    move_z(-100)
+
+    while True:
+        z = read_z()
+        print(z)
+        if z <= -99.5:
+            break
+
+    z = read_z()
+    print(z)
+    print('Yo')
+
+
+    # print(read_z())
+    # sleep(5)
+    # move_z(100)
+    # print(read_z())
+    # sleep(5)
+    # print(read_z())
 
 
 if __name__ == "__main__":

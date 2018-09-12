@@ -95,7 +95,7 @@ l1 = 162.5
 
 def f(z) -> float:
 
-    first_slope_start = l0
+    first_slope_start = 10  # todo l0
     first_slope_end = first_slope_start + l1
     mid_point = first_slope_end + l0
     second_slope_start = mid_point + l0
@@ -168,11 +168,11 @@ def main():
 
     z_socket.sendall(control_ticket(mode=129, speed=3000, current=400, pos=0).encode())
     phi_socket.sendall(control_ticket(mode=129, speed=3000, current=400, pos=0).encode())
-    sleep(5)
+    sleep(1)
 
     # requests.post()
     # z_socket.sendall(control_ticket(mode=8, speed=1000, current=400, pos=0).encode())
-    z_socket.sendall(control_ticket(mode=129, speed=50, current=600, pos=int(total_length/pitch* 360 * 10)).encode())
+    z_socket.sendall(control_ticket(mode=129, speed=1, current=600, pos=int(total_length/pitch* 360 * 10)).encode())
 
     i = 1
     while True:
@@ -188,7 +188,7 @@ def main():
         phi_target = int(f(real_z) * 10.0)
 
         if abs(phi_target - angular_phi) > 0.1:
-            phi_socket.sendall(control_ticket(mode=129, speed=3000, current=400, pos=phi_target).encode())
+            phi_socket.sendall(control_ticket(mode=133, speed=3000, current=600, pos=phi_target).encode())
 
 
 
@@ -208,7 +208,7 @@ def main():
             requests.post(f'http://{ZAXIS}/writeTicket.cgi', data=control_ticket(mode=128, speed=10, current=0, pos=0))
             break
         # if i % 1000 == 0:
-        print(real_z, phi_target / 10.0)
+        print(real_z, phi_target / 10.0, angular_phi)
         i += 1
 
     #

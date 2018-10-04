@@ -13,8 +13,8 @@ FULL_TURN = 360.0
 # PHI_GEAR_RATIO = 100.0 / 2684.0
 
 
-ZAXIS = "192.168.1.222"
-PHI = "192.168.1.102"
+ZAXIS = "192.168.178.11"
+PHI = "192.168.178.12"
 
 
 def read_data(ip: str) -> Tuple[int, int, int, int]:

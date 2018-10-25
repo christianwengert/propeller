@@ -117,7 +117,8 @@ def f(z) -> float:
         return 180.0
 
 
-global latest_z, latest_phi
+latest_z = 0
+latest_phi = 0
 
 
 def connect(axis):
@@ -133,12 +134,13 @@ def connect(axis):
 
         except Exception:
             print(f'Trying to reconnect to {axis} in {timeout}s')
-            timeout = timeout * delta
+            timeout = min(timeout * delta, 60)  # limit to every minute at worst
             sleep(timeout)
 
 
 z_socket = connect(ZAXIS)
 phi_socket = connect(PHI)
+
 
 def z_worker():
     global latest_z
@@ -174,7 +176,7 @@ def parse(msg):
 
 
 def main():
-    global latest_z, latest_phi
+    global latest_z, latest_phi, z_socket, phi_socket
 
     # LINEAR_STEP = 2
     # DELTA = 0.1
@@ -237,92 +239,6 @@ def main():
 
             # reset position
 
-
-
-
-
-        # try:
-
-
-        # except BrokenPipeError:
-        #     phi_socket.close()
-
-            # phi_socket.connect((PHI, 1000))
-
-        # sleep(1)sleep(0.05)
-
-
-
-
-    #
-    #
-    #
-    #
-    #
-    #
-    # while z_target < total_length:
-    #     print(f'1 moving to {z_target}, current is {read_z()}')
-    #     move_z(z_target)
-    #     z_real = read_z()
-    #
-    #     phi_target = f(z_real)
-    #     print(f'2 moving to {phi_target}, current is {read_phi()}')
-    #     move_phi(phi_target)
-    #     phi_real = read_phi()
-    #
-    #     z_target = z_real + LINEAR_STEP
-
-        #
-        #
-        #
-        #
-        # while abs(read_z() - z_target) > DELTA:
-        #     continue
-        #
-        # phi = f(z_target)
-        #
-        # print(f'2 moving to {phi}, current is {read_phi()}')
-        # move_phi(phi)
-        # while abs(read_phi() - phi) > DELTA:
-        #     continue
-        #
-        # z_target = z_target + LINEAR_STEP
-
-
-    #
-    # move_phi(0)
-    # sleep(5)
-    # move_phi(90)
-    # sleep(5)
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    # move_z(0)
-    # # print(read_z())
-    # sleep(5)
-    # move_z(-100)
-    #
-    # while True:
-    #     z_target = read_z()
-    #     print(z_target)
-    #     if z_target <= -99.9:
-    #         break
-    #
-    # z_target = read_z()
-    # print(z_target)
-    # print('Yo')
-
-
-    # print(read_z())
-    # sleep(5)
-    # move_z(100)
-    # print(read_z())
-    # sleep(5)
-    # print(read_z())
 
 
 if __name__ == "__main__":

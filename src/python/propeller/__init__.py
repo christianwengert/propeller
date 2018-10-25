@@ -213,7 +213,7 @@ def main():
                               data=control_ticket(mode=128, speed=10, current=0, pos=0))
                 break
             # if i % 1000 == 0:
-            print(real_z, phi_target / 10.0, angular_phi)
+            print(real_z, phi_target / 10.0, angular_phi / 100.0)
             i += 1
             sleep(1.0 / 10.0)
 

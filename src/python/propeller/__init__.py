@@ -117,14 +117,29 @@ def f(z) -> float:
         return 180.0
 
 
-z_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-z_socket.connect((ZAXIS, 1000))
-
-phi_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-phi_socket.connect((PHI, 1000))
+global latest_z, latest_phi
 
 
-global latest_z
+def connect(axis):
+    ok = False
+    timeout = 1
+    delta = 1.2
+    while not ok:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
+            sock.connect((ZAXIS, 1000))
+            return sock
+
+        except Exception:
+            print(f'Trying to reconnect to {axis} in {timeout}s')
+            timeout = timeout * delta
+            sleep(timeout)
+
+
+z_socket = connect(ZAXIS)
+phi_socket = connect(PHI)
+
 def z_worker():
     global latest_z
     latest_z = None
@@ -134,14 +149,17 @@ def z_worker():
         # latest_z = a
         # a = a+1
 
+
 t_z = threading.Thread(target=z_worker)
 t_z.start()
+
 
 def phi_worker():
     global latest_phi
     latest_phi = None
     while True:
         latest_phi = z_socket.recv(85)
+
 
 t_phi = threading.Thread(target=phi_worker)
 t_phi.start()
@@ -157,8 +175,6 @@ def parse(msg):
 
 def main():
     global latest_z, latest_phi
-
-    #
 
     # LINEAR_STEP = 2
     # DELTA = 0.1
@@ -177,18 +193,50 @@ def main():
     i = 1
     while True:
 
-        local_z = latest_z.decode()  # copy
-        angular_z, *junk = parse(local_z)
+        try:
 
-        real_z = angular_z / 10.0 / 360.0 * 8
+            local_z = latest_z.decode()  # copy
+            angular_z, *junk = parse(local_z)
 
-        local_phi = latest_phi.decode()  # copy
-        angular_phi, *junk = parse(local_phi)
+            real_z = angular_z / 10.0 / 360.0 * 8
 
-        phi_target = int(f(real_z) * 10.0)
+            local_phi = latest_phi.decode()  # copy
+            angular_phi, *junk = parse(local_phi)
 
-        if abs(phi_target - angular_phi) > 0.1:
-            phi_socket.sendall(control_ticket(mode=133, speed=3000, current=600, pos=phi_target).encode())
+            phi_target = int(f(real_z) * 10.0)
+
+            if abs(phi_target - angular_phi) > 0.1:
+                phi_socket.sendall(control_ticket(mode=133, speed=3000, current=600, pos=phi_target).encode())
+
+            if real_z >= total_length:
+                requests.post(f'http://{ZAXIS}/writeTicket.cgi',
+                              data=control_ticket(mode=128, speed=10, current=0, pos=0))
+                break
+            # if i % 1000 == 0:
+            print(real_z, phi_target / 10.0, angular_phi)
+            i += 1
+            sleep(1.0 / 10.0)
+
+        except Exception:
+
+            # first stop al;
+            z_socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
+            phi_socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
+
+            # get current positions
+            current_z = latest_z.decode()
+            current_phi = latest_phi.decode()
+
+            # close
+            z_socket.close()
+            phi_socket.close()
+
+            # reconnect
+            z_socket = connect(ZAXIS)
+            phi_socket = connect(PHI)
+
+            # reset position
+
 
 
 
@@ -202,14 +250,9 @@ def main():
             # phi_socket.connect((PHI, 1000))
 
         # sleep(1)sleep(0.05)
-        sleep(1.0 / 10.0)
 
-        if real_z >= total_length:
-            requests.post(f'http://{ZAXIS}/writeTicket.cgi', data=control_ticket(mode=128, speed=10, current=0, pos=0))
-            break
-        # if i % 1000 == 0:
-        print(real_z, phi_target / 10.0, angular_phi)
-        i += 1
+
+
 
     #
     #

@@ -133,10 +133,10 @@ def connect(axis):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(3)
-            sock.connect((ZAXIS, 1000))
+            sock.connect((axis, 1000))
             return sock
 
-        except Exception:
+        except Exception as e:
             print(f'Trying to reconnect to {axis} in {timeout}s')
             timeout = min(timeout * delta, 60)  # limit to every minute at worst
             sleep(timeout)
@@ -150,7 +150,10 @@ def z_worker():
     global latest_z
     latest_z = None
     while True:
-        latest_z = z_socket.recv(85)
+        try:
+            latest_z = z_socket.recv(85)
+        except Exception as e:
+            pass
 
 
 t_z = threading.Thread(target=z_worker)
@@ -161,7 +164,10 @@ def phi_worker():
     global latest_phi
     latest_phi = None
     while True:
-        latest_phi = z_socket.recv(85)
+        try:
+            latest_phi = phi_socket.recv(85)
+        except Exception as e:
+            pass
 
 
 t_phi = threading.Thread(target=phi_worker)
@@ -197,7 +203,7 @@ def main():
     sleep(10)
 
     pos = int(total_length / pitch * 360 * 10 - z_err)
-    z_socket.sendall(control_ticket(mode=129, speed=1, current=600, pos=pos).encode())
+    z_socket.sendall(control_ticket(mode=129, speed=5, current=600, pos=pos).encode())
 
     i = 1
     while True:
@@ -223,10 +229,10 @@ def main():
                 break
 
             # if i % 1000 == 0:
-            print(real_z, phi_target / 10.0, angular_phi / 100.0)
+            print(real_z, phi_target / 10.0, angular_phi / 10.0)
             i += 1
             sleep(1.0 / 10.0)
-
+        #
         except Exception:
 
             # first stop all;

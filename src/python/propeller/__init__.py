@@ -1,14 +1,19 @@
 # coding=utf-8
 import socket
 import struct
-# import threading
 from time import sleep
 from typing import Tuple
-import requests
 import sh
 
+POS_CONTROL = 129
 
+SPEED = 3000
+
+CURRENT = 600
+
+PITCH = 8
 FULL_TURN = 360.0
+MULTIPLIER = 10.0
 
 # PHI_GEAR_RATIO = 100.0 / 2684.0
 
@@ -27,7 +32,7 @@ def read_data(ip: str) -> Tuple[int, int, int, int]:
 
 def read_angular_pos(ip: str) -> float:
     uptime, position, speed, current = read_data(ip)
-    return position / 10.0
+    return position / MULTIPLIER
 
 
 def control_ticket(mode: int, pos: int, speed: int=10000, current: int=20000, acc: int=400, decc: int=400):
@@ -36,61 +41,6 @@ def control_ticket(mode: int, pos: int, speed: int=10000, current: int=20000, ac
 
 def system_ticket(mode: int):
     return f'<system mode="{mode}" />'
-
-#
-# def send_stepper_pos(ip: str, torque: int):
-#     headers = {'type': 'text/plain'}
-#     requests.post(f'http://{ip}/writeTicket.cgi',
-#                   headers=headers,
-#                   data=control_ticket(mode=8, current=torque, pos=0))
-
-
-def send_pid_pos(ip: str, position: float):
-    headers = {'type': 'text/plain'}
-    position = int(position * 10.0)
-    requests.post(f'http://{ip}/writeTicket.cgi',
-                  headers=headers,
-                  data=control_ticket(mode=129, pos=position))
-
-
-def move_phi(pos: float):
-    """
-    Give the angular position of the output shaft in [deg]
-    """
-    send_pid_pos(PHI, pos)
-
-
-def read_phi() -> float:
-    """
-    Returns the output shafts position in [deg]
-    """
-
-    motor_pos = read_angular_pos(PHI)
-    return motor_pos
-
-
-def move_z(pos: float):
-    """
-    pos in [mm]
-    the openbuilds lead screw has a pitch of 2mm
-
-    Accuracy is theoretically around 2.5um
-    """
-    pitch = 8.0  # [mm]
-    angular_pos = pos / pitch * 360.0
-    send_pid_pos(ZAXIS, angular_pos)
-
-
-def read_z() -> float:
-    """
-    Return pos in [mm]]
-
-    Accuracy is theoretically around 2.5um
-    """
-    pitch = 8.0  # [mm]
-    angular_pos = read_angular_pos(ZAXIS)
-    pos = angular_pos * pitch / FULL_TURN
-    return pos
 
 
 l0 = 100
@@ -138,34 +88,6 @@ def connect(axis):
             timeout = min(timeout * delta, 60)  # limit to every minute at worst
             sleep(timeout)
 
-#
-# def z_worker():
-#     global latest_z
-#     latest_z = None
-#     while True:
-#         try:
-#             latest_z = z_socket.recv(85)
-#         except Exception as e:
-#             pass
-#
-#
-# t_z = threading.Thread(target=z_worker)
-# t_z.start()
-#
-#
-# def phi_worker():
-#     global latest_phi
-#     latest_phi = None
-#     while True:
-#         try:
-#             latest_phi = phi_socket.recv(85)
-#         except Exception as e:
-#             pass
-#
-
-# t_phi = threading.Thread(target=phi_worker)
-# t_phi.start()
-
 
 def parse(msg):
     pos = int(msg[18:28])
@@ -192,14 +114,12 @@ def main():
     # DELTA = 0.1
     # z_target = 0
     total_length = 4 * l0 + 2 * l1
-    pitch = 8
-
-    z_socket.sendall(control_ticket(mode=129, speed=3000, current=400, pos=0).encode())
-    phi_socket.sendall(control_ticket(mode=129, speed=3000, current=400, pos=0).encode())
+    z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=0).encode())
+    phi_socket.sendall(control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=0).encode())
     sleep(10)
 
-    pos = int(total_length / pitch * 360 * 10 - z_err)
-    z_socket.sendall(control_ticket(mode=129, speed=5, current=600, pos=pos).encode())
+    pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)
+    z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=5, current=CURRENT, pos=pos).encode())
 
     i = 1
     reinit = False
@@ -214,8 +134,8 @@ def main():
                 phi_socket.sendall(system_ticket(mode=2).encode())
 
                 # reset position
-                pos = int(total_length / pitch * 360 * 10 - z_err)  # we already advanced to current_z
-                z_socket.sendall(control_ticket(mode=129, speed=1, current=600, pos=pos).encode())
+                pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)  # we already advanced to current_z
+                z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=1, current=CURRENT, pos=pos).encode())
                 reinit = False
 
             latest_z = z_socket.recv(85)
@@ -223,24 +143,23 @@ def main():
             local_z = latest_z.decode()  # copy
             angular_z, *junk = parse(local_z)
 
-            real_z = (angular_z + z_err) / 10.0 / 360.0 * 8
+            real_z = (angular_z + z_err) / MULTIPLIER / FULL_TURN * PITCH
 
             latest_phi = phi_socket.recv(85)
             local_phi = latest_phi.decode()  # copy
             angular_phi, *junk = parse(local_phi)
 
-            phi_target = int(f(real_z) * 10.0)
+            phi_target = int(f(real_z) * MULTIPLIER)
 
             if abs(phi_target - (angular_phi + phi_err)) > 0.1:
-                phi_socket.sendall(control_ticket(mode=133, speed=3000, current=600, pos=phi_target).encode())
+                phi_socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=phi_target).encode())
 
             if real_z >= total_length:
                 # stop all
                 stop_all()
                 break
 
-            # if i % 1000 == 0:
-            print(real_z, phi_target / 10.0, angular_phi / 10.0)
+            print(real_z, phi_target / MULTIPLIER, angular_phi / MULTIPLIER)
             i += 1
             sleep(1.0 / 10.0)
         #

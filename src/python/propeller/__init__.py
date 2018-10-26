@@ -33,6 +33,10 @@ def read_angular_pos(ip: str) -> float:
 def control_ticket(mode: int, pos: int, speed: int=10000, current: int=20000, acc: int=400, decc: int=400):
     return f'<control pos="{pos}" speed="{speed}" current="{current}" mode="{mode}" acc="{acc}" decc="{decc}" />'
 
+
+def system_ticket(mode: int):
+    return f'<system mode="{mode}" />'
+
 #
 # def send_stepper_pos(ip: str, torque: int):
 #     headers = {'type': 'text/plain'}
@@ -145,11 +149,8 @@ phi_socket = connect(PHI)
 def z_worker():
     global latest_z
     latest_z = None
-    a = 1
     while True:
         latest_z = z_socket.recv(85)
-        # latest_z = a
-        # a = a+1
 
 
 t_z = threading.Thread(target=z_worker)
@@ -178,6 +179,13 @@ def parse(msg):
 def main():
     global latest_z, latest_phi, z_socket, phi_socket
 
+    def stop_all():
+        z_socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
+        phi_socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
+
+    z_err = 0
+    phi_err = 0
+
     # LINEAR_STEP = 2
     # DELTA = 0.1
     # z_target = 0
@@ -186,11 +194,10 @@ def main():
 
     z_socket.sendall(control_ticket(mode=129, speed=3000, current=400, pos=0).encode())
     phi_socket.sendall(control_ticket(mode=129, speed=3000, current=400, pos=0).encode())
-    sleep(1)
+    sleep(10)
 
-    # requests.post()
-    # z_socket.sendall(control_ticket(mode=8, speed=1000, current=400, pos=0).encode())
-    z_socket.sendall(control_ticket(mode=129, speed=1, current=600, pos=int(total_length/pitch* 360 * 10)).encode())
+    pos = int(total_length / pitch * 360 * 10 - z_err)
+    z_socket.sendall(control_ticket(mode=129, speed=1, current=600, pos=pos).encode())
 
     i = 1
     while True:
@@ -200,20 +207,21 @@ def main():
             local_z = latest_z.decode()  # copy
             angular_z, *junk = parse(local_z)
 
-            real_z = angular_z / 10.0 / 360.0 * 8
+            real_z = (angular_z + z_err) / 10.0 / 360.0 * 8
 
             local_phi = latest_phi.decode()  # copy
             angular_phi, *junk = parse(local_phi)
 
             phi_target = int(f(real_z) * 10.0)
 
-            if abs(phi_target - angular_phi) > 0.1:
+            if abs(phi_target - (angular_phi + phi_err)) > 0.1:
                 phi_socket.sendall(control_ticket(mode=133, speed=3000, current=600, pos=phi_target).encode())
 
             if real_z >= total_length:
-                requests.post(f'http://{ZAXIS}/writeTicket.cgi',
-                              data=control_ticket(mode=128, speed=10, current=0, pos=0))
+                # stop all
+                stop_all()
                 break
+
             # if i % 1000 == 0:
             print(real_z, phi_target / 10.0, angular_phi / 100.0)
             i += 1
@@ -221,13 +229,12 @@ def main():
 
         except Exception:
 
-            # first stop al;
-            z_socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
-            phi_socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
+            # first stop all;
+            stop_all()
 
             # get current positions
-            current_z = latest_z.decode()
-            current_phi = latest_phi.decode()
+            z_err = latest_z.decode()
+            phi_err = latest_phi.decode()
 
             # close
             z_socket.close()
@@ -237,8 +244,13 @@ def main():
             z_socket = connect(ZAXIS)
             phi_socket = connect(PHI)
 
-            # reset position
+            # set current poisiton to 0
+            z_socket.sendall(system_ticket(mode=2).encode())
+            phi_socket.sendall(system_ticket(mode=2).encode())
 
+            # reset position
+            pos = int(total_length / pitch * 360 * 10 - z_err)  # we already advanced to current_z
+            z_socket.sendall(control_ticket(mode=129, speed=1, current=600, pos=pos).encode())
 
 
 if __name__ == "__main__":

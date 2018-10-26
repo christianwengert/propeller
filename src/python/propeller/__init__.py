@@ -118,10 +118,15 @@ def main():
     phi_socket.sendall(control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=0).encode())
     sleep(10)
 
-    pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)
-    z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=5, current=CURRENT, pos=pos).encode())
+    # Z_SPEED = 10
+    # pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)
+    # z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=Z_SPEED, current=CURRENT, pos=pos).encode())
 
     i = 1
+
+    STEP = 20
+    z_target = 0
+
     reinit = False
     while True:
 
@@ -130,29 +135,59 @@ def main():
 
             if reinit:
                 # set current poisiton to 0
-                z_socket.sendall(system_ticket(mode=2).encode())
-                phi_socket.sendall(system_ticket(mode=2).encode())
+                try:
+                    # get current position positions
+                    latest_z = z_socket.recv(1024 * 1024)[-85 * 2:].decode()
+                    idx = latest_z.rfind('>')
+                    local_z = latest_z[idx - 85 + 1:idx + 1]
+                    angular_z, *junk = parse(local_z)
 
-                # reset position
-                pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)  # we already advanced to current_z
-                z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=1, current=CURRENT, pos=pos).encode())
-                reinit = False
+                    latest_phi = phi_socket.recv(1024 * 1024)[-85 * 2:].decode()
+                    idx = latest_phi.rfind('>')
+                    local_phi = latest_phi[idx - 85 + 1:idx + 1]
+                    angular_phi, *junk = parse(local_phi)
 
-            latest_z = z_socket.recv(85)
+                    z_err = z_err + angular_z
+                    phi_err = phi_err + angular_phi
+                    z_socket.sendall(system_ticket(mode=2).encode())
+                    z_socket.sendall(system_ticket(mode=2).encode())
+                    phi_socket.sendall(system_ticket(mode=2).encode())
+                    phi_socket.sendall(system_ticket(mode=2).encode())
+                    # reset position
+                    # pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)  # we already advanced to current_z
+                    # z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=Z_SPEED, current=CURRENT, pos=pos).encode())
+                    reinit = False
+                except Exception as e:
+                    continue
 
-            local_z = latest_z.decode()  # copy
+
+            latest_z = z_socket.recv(1024 * 1024)[-85 * 2:].decode()
+            idx = latest_z.rfind('>')
+            local_z = latest_z[idx - 85 + 1:idx + 1]
+
+            # if abs(z_target - (angular_phi + phi_err)) > 0.1:
+            z_socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=z_target - z_err).encode())
+            z_target += STEP
+
+
+            # pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)
+            # z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=Z_SPEED, current=CURRENT, pos=pos).encode())
+
+
             angular_z, *junk = parse(local_z)
 
             real_z = (angular_z + z_err) / MULTIPLIER / FULL_TURN * PITCH
 
-            latest_phi = phi_socket.recv(85)
-            local_phi = latest_phi.decode()  # copy
+            latest_phi = phi_socket.recv(1024 * 1024)[-85 * 2:].decode()
+            idx = latest_phi.rfind('>')
+            local_phi = latest_phi[idx - 85 + 1:idx + 1]
+
             angular_phi, *junk = parse(local_phi)
 
             phi_target = int(f(real_z) * MULTIPLIER)
 
             if abs(phi_target - (angular_phi + phi_err)) > 0.1:
-                phi_socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=phi_target).encode())
+                phi_socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=phi_target - phi_err).encode())
 
             if real_z >= total_length:
                 # stop all
@@ -163,14 +198,10 @@ def main():
             i += 1
             sleep(1.0 / 10.0)
         #
-        except Exception:
+        except Exception as e:
 
             # first stop all;
             stop_all()
-
-            # get last known positions
-            z_err = angular_z
-            phi_err = angular_phi
 
             # close
             z_socket.close()

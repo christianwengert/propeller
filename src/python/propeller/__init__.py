@@ -1,7 +1,7 @@
 # coding=utf-8
 import socket
 import struct
-import threading
+# import threading
 from time import sleep
 from typing import Tuple
 import requests
@@ -121,10 +121,6 @@ def f(z) -> float:
         return 180.0
 
 
-latest_z = 0
-latest_phi = 0
-
-
 def connect(axis):
     ok = False
     timeout = 1
@@ -140,10 +136,6 @@ def connect(axis):
             print(f'Trying to reconnect to {axis} in {timeout}s')
             timeout = min(timeout * delta, 60)  # limit to every minute at worst
             sleep(timeout)
-
-
-z_socket = connect(ZAXIS)
-phi_socket = connect(PHI)
 
 #
 # def z_worker():
@@ -183,14 +175,17 @@ def parse(msg):
 
 
 def main():
-    global latest_z, latest_phi, z_socket, phi_socket
+    z_socket = connect(ZAXIS)
+    phi_socket = connect(PHI)
 
     def stop_all():
         z_socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
         phi_socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
 
-    z_err = 0
-    phi_err = 0
+    z_err = 0.0
+    phi_err = 0.0
+    angular_z = 0.0
+    angular_phi = 0.0
 
     # LINEAR_STEP = 2
     # DELTA = 0.1
@@ -206,9 +201,20 @@ def main():
     z_socket.sendall(control_ticket(mode=129, speed=5, current=600, pos=pos).encode())
 
     i = 1
+    reinit = False
     while True:
 
         try:
+
+            if reinit:
+                # set current poisiton to 0
+                z_socket.sendall(system_ticket(mode=2).encode())
+                phi_socket.sendall(system_ticket(mode=2).encode())
+
+                # reset position
+                pos = int(total_length / pitch * 360 * 10 - z_err)  # we already advanced to current_z
+                z_socket.sendall(control_ticket(mode=129, speed=1, current=600, pos=pos).encode())
+                reinit = False
 
             latest_z = z_socket.recv(85)
 
@@ -241,9 +247,9 @@ def main():
             # first stop all;
             stop_all()
 
-            # get current positions
-            z_err = latest_z.decode()
-            phi_err = latest_phi.decode()
+            # get last known positions
+            z_err = angular_z
+            phi_err = angular_phi
 
             # close
             z_socket.close()
@@ -253,13 +259,7 @@ def main():
             z_socket = connect(ZAXIS)
             phi_socket = connect(PHI)
 
-            # set current poisiton to 0
-            z_socket.sendall(system_ticket(mode=2).encode())
-            phi_socket.sendall(system_ticket(mode=2).encode())
-
-            # reset position
-            pos = int(total_length / pitch * 360 * 10 - z_err)  # we already advanced to current_z
-            z_socket.sendall(control_ticket(mode=129, speed=1, current=600, pos=pos).encode())
+            reinit = True
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 # coding=utf-8
 import socket
-import struct
+# import struct
 from time import sleep
-from typing import Tuple
-import sh
+# from typing import Tuple
+# import sh
 
 POS_CONTROL = 129
 
@@ -22,17 +22,17 @@ ZAXIS = "192.168.178.11"
 PHI = "192.168.178.12"
 
 
-def read_data(ip: str) -> Tuple[int, int, int, int]:
-    # noinspection PyUnresolvedReferences
-    r = sh.curl(f'http://{ip}/getData.cgi?bin')
-    data = r.stdout
-    uptime, position, speed, current = struct.unpack('iiii', data[0:16])
-    return uptime, position, speed, current
-
-
-def read_angular_pos(ip: str) -> float:
-    uptime, position, speed, current = read_data(ip)
-    return position / MULTIPLIER
+# def read_data(ip: str) -> Tuple[int, int, int, int]:
+#     noinspection PyUnresolvedReferences
+    # r = sh.curl(f'http://{ip}/getData.cgi?bin')
+    # data = r.stdout
+    # uptime, position, speed, current = struct.unpack('iiii', data[0:16])
+    # return uptime, position, speed, current
+#
+#
+# def read_angular_pos(ip: str) -> float:
+#     uptime, position, speed, current = read_data(ip)
+#     return position / MULTIPLIER
 
 
 def control_ticket(mode: int, pos: int, speed: int=10000, current: int=20000, acc: int=400, decc: int=400):
@@ -82,7 +82,6 @@ def connect(axis):
             sock.settimeout(3)
             sock.connect((axis, 1000))
             return sock
-
         except Exception as e:
             print(f'Trying to reconnect to {axis} in {timeout}s, {e}')
             timeout = min(timeout * delta, 60)  # limit to every minute at worst
@@ -107,94 +106,61 @@ def main():
 
     z_err = 0.0
     phi_err = 0.0
-    angular_z = 0.0
-    angular_phi = 0.0
 
-    # LINEAR_STEP = 2
-    # DELTA = 0.1
-    # z_target = 0
     total_length = 4 * l0 + 2 * l1
     z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=0).encode())
     phi_socket.sendall(control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=0).encode())
     sleep(10)
 
-    # Z_SPEED = 10
-    # pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)
-    # z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=Z_SPEED, current=CURRENT, pos=pos).encode())
-
-    i = 1
-
     STEP = 20
     z_target = 0
 
     reinit = False
+    i = 1
     while True:
 
         # noinspection PyBroadException
         try:
-
             if reinit:
-                # set current poisiton to 0
                 try:
                     # get current position positions
-                    latest_z = z_socket.recv(1024 * 1024)[-85 * 2:].decode()
-                    idx = latest_z.rfind('>')
-                    local_z = latest_z[idx - 85 + 1:idx + 1]
-                    angular_z, *junk = parse(local_z)
-
-                    latest_phi = phi_socket.recv(1024 * 1024)[-85 * 2:].decode()
-                    idx = latest_phi.rfind('>')
-                    local_phi = latest_phi[idx - 85 + 1:idx + 1]
-                    angular_phi, *junk = parse(local_phi)
-
-                    z_err = z_err + angular_z
+                    current_z = read_angular_position(z_socket)
+                    angular_phi = read_angular_position(phi_socket)
+                    # increment errors
+                    z_err = z_err + current_z
                     phi_err = phi_err + angular_phi
+
+                    # ensure we are @ zero!
                     z_socket.sendall(system_ticket(mode=2).encode())
-                    z_socket.sendall(system_ticket(mode=2).encode())
+
                     phi_socket.sendall(system_ticket(mode=2).encode())
-                    phi_socket.sendall(system_ticket(mode=2).encode())
-                    # reset position
-                    # pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)  # we already advanced to current_z
-                    # z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=Z_SPEED, current=CURRENT, pos=pos).encode())
+
+                    # reset target
+                    z_target = 0
+
                     reinit = False
                 except Exception as e:
                     continue
 
-
-            latest_z = z_socket.recv(1024 * 1024)[-85 * 2:].decode()
-            idx = latest_z.rfind('>')
-            local_z = latest_z[idx - 85 + 1:idx + 1]
-
-            # if abs(z_target - (angular_phi + phi_err)) > 0.1:
-            z_socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=z_target - z_err).encode())
+            z_socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=z_target).encode())
             z_target += STEP
 
-
-            # pos = int(total_length / PITCH * FULL_TURN * MULTIPLIER - z_err)
-            # z_socket.sendall(control_ticket(mode=POS_CONTROL, speed=Z_SPEED, current=CURRENT, pos=pos).encode())
-
-
-            angular_z, *junk = parse(local_z)
+            angular_z = read_angular_position(z_socket)
 
             real_z = (angular_z + z_err) / MULTIPLIER / FULL_TURN * PITCH
 
-            latest_phi = phi_socket.recv(1024 * 1024)[-85 * 2:].decode()
-            idx = latest_phi.rfind('>')
-            local_phi = latest_phi[idx - 85 + 1:idx + 1]
+            angular_phi = read_angular_position(phi_socket)
 
-            angular_phi, *junk = parse(local_phi)
+            phi_target = int(f(real_z) * MULTIPLIER) - phi_err
 
-            phi_target = int(f(real_z) * MULTIPLIER)
-
-            if abs(phi_target - (angular_phi + phi_err)) > 0.1:
-                phi_socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=phi_target - phi_err).encode())
+            if abs(phi_target - angular_phi) > 0.1:
+                phi_socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=phi_target).encode())
 
             if real_z >= total_length:
-                # stop all
                 stop_all()
                 break
 
-            print(real_z, phi_target / MULTIPLIER, angular_phi / MULTIPLIER)
+            print(real_z, phi_target / MULTIPLIER, (angular_phi + phi_err) / MULTIPLIER)
             i += 1
             sleep(1.0 / 10.0)
         #
@@ -212,6 +178,18 @@ def main():
             phi_socket = connect(PHI)
 
             reinit = True
+
+
+def read_angular_position(socket):
+    args = read_socket(socket)
+    return args[0]
+
+def read_socket(socket):
+    latest = socket.recv(1024 * 1024)[-85 * 2:].decode()
+    idx = latest.rfind('>')
+    local = latest[idx - 85 + 1:idx + 1]
+    args = parse(local)  # current PHI
+    return args
 
 
 if __name__ == "__main__":

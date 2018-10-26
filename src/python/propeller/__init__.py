@@ -145,33 +145,33 @@ def connect(axis):
 z_socket = connect(ZAXIS)
 phi_socket = connect(PHI)
 
+#
+# def z_worker():
+#     global latest_z
+#     latest_z = None
+#     while True:
+#         try:
+#             latest_z = z_socket.recv(85)
+#         except Exception as e:
+#             pass
+#
+#
+# t_z = threading.Thread(target=z_worker)
+# t_z.start()
+#
+#
+# def phi_worker():
+#     global latest_phi
+#     latest_phi = None
+#     while True:
+#         try:
+#             latest_phi = phi_socket.recv(85)
+#         except Exception as e:
+#             pass
+#
 
-def z_worker():
-    global latest_z
-    latest_z = None
-    while True:
-        try:
-            latest_z = z_socket.recv(85)
-        except Exception as e:
-            pass
-
-
-t_z = threading.Thread(target=z_worker)
-t_z.start()
-
-
-def phi_worker():
-    global latest_phi
-    latest_phi = None
-    while True:
-        try:
-            latest_phi = phi_socket.recv(85)
-        except Exception as e:
-            pass
-
-
-t_phi = threading.Thread(target=phi_worker)
-t_phi.start()
+# t_phi = threading.Thread(target=phi_worker)
+# t_phi.start()
 
 
 def parse(msg):
@@ -210,11 +210,14 @@ def main():
 
         try:
 
+            latest_z = z_socket.recv(85)
+
             local_z = latest_z.decode()  # copy
             angular_z, *junk = parse(local_z)
 
             real_z = (angular_z + z_err) / 10.0 / 360.0 * 8
 
+            latest_phi = phi_socket.recv(85)
             local_phi = latest_phi.decode()  # copy
             angular_phi, *junk = parse(local_phi)
 

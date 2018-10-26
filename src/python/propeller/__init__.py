@@ -126,6 +126,7 @@ def connect(axis):
     timeout = 1
     delta = 1.2
     while not ok:
+        # noinspection PyBroadException
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(3)
@@ -133,7 +134,7 @@ def connect(axis):
             return sock
 
         except Exception as e:
-            print(f'Trying to reconnect to {axis} in {timeout}s')
+            print(f'Trying to reconnect to {axis} in {timeout}s, {e}')
             timeout = min(timeout * delta, 60)  # limit to every minute at worst
             sleep(timeout)
 
@@ -204,6 +205,7 @@ def main():
     reinit = False
     while True:
 
+        # noinspection PyBroadException
         try:
 
             if reinit:

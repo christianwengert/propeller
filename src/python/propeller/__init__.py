@@ -1,14 +1,11 @@
 # coding=utf-8
 import socket
-# import struct
 from time import sleep
 
+
 POS_CONTROL = 129
-
 SPEED = 3000
-
 CURRENT = 600
-
 PITCH = 8
 FULL_TURN = 360.0
 MULTIPLIER = 10.0
@@ -80,16 +77,7 @@ def parse(msg):
 
 
 def sendall(socket, data):
-    # try:
-    #     read_socket(socket)
-    # except Exception as e:
-    #     return False
-
-    # try:
     socket.sendall(data)
-    # except Exception as e:
-    #     return False
-    # return True
 
 
 def main():

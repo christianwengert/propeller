@@ -4,8 +4,8 @@ from time import sleep
 
 
 POS_CONTROL = 129
-SPEED = 3000
-CURRENT = 600
+SPEED = 0
+CURRENT = 1000
 PITCH = 8
 FULL_TURN = 360.0
 MULTIPLIER = 10.0
@@ -27,7 +27,9 @@ l0 = 100
 l1 = 162.5
 
 
-def f(z) -> float:
+
+
+def phi_angular_from_z_mm(z) -> int:
 
     first_slope_start = 10  # todo l0
     first_slope_end = first_slope_start + l1
@@ -35,26 +37,33 @@ def f(z) -> float:
     second_slope_start = mid_point + l0
     second_slope_end = second_slope_start + l1
 
+    val = None
+
     if z < first_slope_start:
-        return 0.0
+        val = 0.0
 
     if first_slope_start <= z < first_slope_end:
-        return 0.0 + (z - first_slope_start) / l1 * 90.0
+        val = 0.0 + (z - first_slope_start) / l1 * 90.0
 
     if first_slope_end <= z < second_slope_start:
-        return 90.0
+        val = 90.0
 
     if second_slope_start <= z < second_slope_end:
-        return 90.0 + (z - second_slope_start) / l1 * 90.0
+        val = 90.0 + (z - second_slope_start) / l1 * 90.0
 
     if second_slope_end <= z:
-        return 180.0
+        val = 180.0
+
+    if val is None:
+        raise ValueError
+
+    return int(val * MULTIPLIER)
 
 
 def connect(axis):
     ok = False
     timeout = 1
-    delta = 1.2
+    # delta = 1.2
     while not ok:
         # noinspection PyBroadException
         try:
@@ -64,8 +73,82 @@ def connect(axis):
             return sock
         except Exception as e:
             print(f'Trying to reconnect to {axis} in {timeout}s, {e}')
-            timeout = min(timeout * delta, 60)  # limit to every minute at worst
+            # timeout = min(timeout * delta, 60)  # limit to every minute at worst
             sleep(timeout)
+
+
+class Axis:
+    def __init__(self, ip_adress, mode, current, speed):
+        self.socket = connect(ip_adress)
+        self.err = 0.0
+        self.target = 0.0
+        self.mode = mode
+        self.current = current
+        self.speed = speed
+
+    def goto(self, angular_position):
+        self.target = angular_position + self.err
+        self.socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=self.target).encode())
+
+    def drive(self, speed, current):
+        self.socket.sendall(control_ticket(mode=8, speed=speed, current=current, pos=0).encode())
+
+    def drive2(self, speed, current, angular_position):
+        self.target = angular_position + self.err
+
+        self.socket.sendall(control_ticket(mode=8, speed=speed, current=current, pos=0).encode())
+
+        self.wait()
+
+        self.stop()
+
+    @property
+    def position(self):
+        return self.read_socket()[0] + self.err
+
+    def read_socket(self):
+        latest = self.socket.recv(1024 * 1024)[-85 * 2:].decode()
+        idx = latest.rfind('>')
+        local = latest[idx - 85 + 1:idx + 1]
+        args = parse(local)  # current PHI
+        return args
+
+    def stop(self):
+        self.socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
+
+    def reset(self, current_angular_pos):
+        try:
+            self.stop()
+        except:
+            pass
+        self.socket.close()
+        self.socket = connect(ZAXIS)
+        self.err = current_angular_pos - self.position
+
+    def wait(self):
+        while abs(self.position - self.target) > 15:
+            sleep(0.1)
+
+
+def z_mm2angular(z_mm):
+    return z_mm * MULTIPLIER * FULL_TURN / PITCH
+
+
+def z_angular2mm(z_ang):
+    return z_ang / MULTIPLIER / FULL_TURN * PITCH
+
+
+def compute_angular_axis_positions(z_mm):
+    phi_angular = phi_angular_from_z_mm(z_mm)
+    z_angular = z_mm2angular(z_mm)
+    return z_angular, phi_angular
+
+
+def move_axes(z_mm):
+    z_angular, phi_angular = compute_angular_axis_positions(z_mm)
+
+    z_axis.goto(z_angular)
+    phi_axis.goto(phi_angular)
 
 
 def parse(msg):
@@ -80,83 +163,59 @@ def sendall(socket, data):
     socket.sendall(data)
 
 
+z_axis = Axis(ZAXIS, 8, current=1000, speed=1000)
+phi_axis = Axis(PHI, 133, 600, 3000)
+
+
+
 def main():
-    z_socket = connect(ZAXIS)
-    phi_socket = connect(PHI)
-
-    def stop_all():
-        sendall(z_socket, control_ticket(mode=0, speed=0, current=0, pos=0).encode())
-        # sendall(phi_socket, control_ticket(mode=0, speed=0, current=0, pos=0).encode())
-
-    z_err = 0.0
-    phi_err = 0.0
 
     total_length = 4 * l0 + 2 * l1
-    sendall(z_socket, control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=0).encode())
-    # sendall(phi_socket, control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=0).encode())
-    while abs(read_motor_position(z_socket)) > 0.5:
-        sleep(0.1)
 
-    STEP = 100  # = 2.0deg
-    z_target = 0
-    angular_z = 0
-    angular_phi = 0
+    z_axis.goto(0)
+    phi_axis.goto(0)
+
+    z_axis.wait()
+    phi_axis.wait()
+
+    STEP_MM = 0.05
+    z_target_mm = 0
+    z_angular = phi_angular = 0
 
     reinit = False
-    i = 1
+
     while True:
 
         # noinspection PyBroadException
         try:
             if reinit:
-
-                # reset_motors(phi_socket, z_socket)
-                current_z = read_motor_position(z_socket)
-                # increment errors
-                z_err += angular_z - current_z
-                # phi_err = phi_err + angular_phi
-
-                # reset target
-                z_target = current_z
-
+                z_axis.reset(z_angular)
+                phi_axis.reset(phi_angular)
                 reinit = False
 
-            sendall(z_socket, control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=z_target).encode())
-            z_target += STEP
+            z_target_mm += STEP_MM
+            z_angular = z_mm2angular(z_target_mm)
+            z_axis.drive2(speed=500, current=1000, angular_position=z_angular)
+            phi_angular = phi_angular_from_z_mm(z_target_mm)
+            # phi_axis.goto(phi_angular)
 
-            angular_z = read_motor_position(z_socket)
-
-            real_z = (angular_z + z_err) / MULTIPLIER / FULL_TURN * PITCH
-
-            # angular_phi = read_motor_position(phi_socket)
-            #
-            # phi_target = int(f(real_z) * MULTIPLIER) - phi_err
-            #
-            # if abs(phi_target - angular_phi) > 0.1:
-            #     sendall(phi_socket, control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=phi_target).encode())
-
-            if real_z >= total_length:
-                stop_all()
+            if z_target_mm >= total_length:
+                z_axis.stop()
+                phi_axis.stop()
                 break
 
-            phi_target = -9999
-            print(real_z, phi_target / MULTIPLIER, (angular_phi + phi_err) / MULTIPLIER)
-            i += 1
-            sleep(1.0 / 10.0)
+            z_axis.wait()
+            z_axis.stop()
+
+            phi_axis.wait()
+
+            current_z_mm = z_angular2mm(z_axis.position)
+            current_phi_ang = phi_axis.position / MULTIPLIER
+
+            print(current_z_mm, current_phi_ang)
 
         except Exception as e:
-
             # first stop all;
-            stop_all()
-
-            # close
-            z_socket.close()
-            phi_socket.close()
-
-            # reconnect
-            z_socket = connect(ZAXIS)
-            phi_socket = connect(PHI)
-
             reinit = True
 
 
@@ -170,17 +229,8 @@ def reset_motors(phi_socket, z_socket):
     # sendall(phi_socket, system_ticket(mode=2).encode())
 
 
-def read_motor_position(socket):
-    args = read_socket(socket)
-    return args[0]
 
 
-def read_socket(socket):
-    latest = socket.recv(1024 * 1024)[-85 * 2:].decode()
-    idx = latest.rfind('>')
-    local = latest[idx - 85 + 1:idx + 1]
-    args = parse(local)  # current PHI
-    return args
 
 
 if __name__ == "__main__":

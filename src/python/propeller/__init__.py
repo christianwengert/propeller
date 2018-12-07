@@ -27,8 +27,6 @@ l0 = 100
 l1 = 162.5
 
 
-
-
 def phi_angular_from_z_mm(z) -> int:
 
     first_slope_start = 10  # todo l0
@@ -78,33 +76,37 @@ def connect(axis):
 
 
 class Axis:
-    def __init__(self, ip_adress, mode, current, speed):
+    def __init__(self, ip_adress):
         self.socket = connect(ip_adress)
         self.err = 0.0
         self.target = 0.0
-        self.mode = mode
-        self.current = current
-        self.speed = speed
 
     def goto(self, angular_position):
         self.target = angular_position + self.err
-        self.socket.sendall(control_ticket(mode=133, speed=SPEED, current=CURRENT, pos=self.target).encode())
+        self.socket.sendall(control_ticket(mode=129, speed=SPEED, current=CURRENT, pos=self.target).encode())
 
     def drive(self, speed, current):
         self.socket.sendall(control_ticket(mode=8, speed=speed, current=current, pos=0).encode())
 
-    def drive2(self, speed, current, angular_position):
-        self.target = angular_position + self.err
-
-        self.socket.sendall(control_ticket(mode=8, speed=speed, current=current, pos=0).encode())
-
-        self.wait()
-
-        self.stop()
+    # def drive2(self, speed, current, angular_position):
+    #     self.target = angular_position + self.err
+    #
+    #     self.socket.sendall(control_ticket(mode=8, speed=speed, current=current, pos=0).encode())
+    #
+    #     # self.wait()
+    #     # Annahme, z is ver incresing
+    #     while self.position < self.target:
+    #         sleep(0.05)
+    #
+    #     self.stop()
 
     @property
     def position(self):
         return self.read_socket()[0] + self.err
+
+    @property
+    def speed(self):
+        return self.read_socket()[1]
 
     def read_socket(self):
         latest = self.socket.recv(1024 * 1024)[-85 * 2:].decode()
@@ -117,16 +119,17 @@ class Axis:
         self.socket.sendall(control_ticket(mode=0, speed=0, current=0, pos=0).encode())
 
     def reset(self, current_angular_pos):
+        # noinspection PyBroadException
         try:
             self.stop()
-        except:
+        except Exception:
             pass
         self.socket.close()
         self.socket = connect(ZAXIS)
         self.err = current_angular_pos - self.position
 
     def wait(self):
-        while abs(self.position - self.target) > 15:
+        while abs(self.position - self.target) > 5:
             sleep(0.1)
 
 
@@ -163,9 +166,8 @@ def sendall(socket, data):
     socket.sendall(data)
 
 
-z_axis = Axis(ZAXIS, 8, current=1000, speed=1000)
-phi_axis = Axis(PHI, 133, 600, 3000)
-
+z_axis = Axis(ZAXIS)
+phi_axis = Axis(PHI)
 
 
 def main():
@@ -175,62 +177,85 @@ def main():
     z_axis.goto(0)
     phi_axis.goto(0)
 
-    z_axis.wait()
-    phi_axis.wait()
+    # z_axis.wait()
+    # phi_axis.wait()
 
-    STEP_MM = 0.05
+    STEP_MM = 1
     z_target_mm = 0
-    z_angular = phi_angular = 0
+    z_angular = phi_angular_target = 0
 
     reinit = False
 
+    # z_axis.drive(speed=1000, current=1000)
     while True:
 
         # noinspection PyBroadException
         try:
             if reinit:
                 z_axis.reset(z_angular)
-                phi_axis.reset(phi_angular)
+                phi_axis.reset(phi_angular_target)
                 reinit = False
+                # z_axis.drive(speed=1000, current=1000)
 
             z_target_mm += STEP_MM
-            z_angular = z_mm2angular(z_target_mm)
-            z_axis.drive2(speed=500, current=1000, angular_position=z_angular)
-            phi_angular = phi_angular_from_z_mm(z_target_mm)
-            # phi_axis.goto(phi_angular)
+            z_target_angular = z_mm2angular(z_target_mm)
+            phi_angular_target = phi_angular_from_z_mm(z_target_mm)
 
-            if z_target_mm >= total_length:
-                z_axis.stop()
-                phi_axis.stop()
-                break
+            z_ok = phi_ok = False
 
-            z_axis.wait()
-            z_axis.stop()
+            while not (z_ok and phi_ok):
+                z_ok = z_axis.position >= z_target_angular - 5
+                phi_ok = phi_axis.position >= phi_angular_target -5
 
-            phi_axis.wait()
+                if z_ok:
+                    z_axis.stop()
+                else:
+                    z_axis.drive(speed=1000, current=200)
 
-            current_z_mm = z_angular2mm(z_axis.position)
-            current_phi_ang = phi_axis.position / MULTIPLIER
+                if phi_ok:
+                    phi_axis.stop()
+                else:
+                    phi_axis.drive(speed=1000, current=200)
 
-            print(current_z_mm, current_phi_ang)
+                print(z_target_mm, z_angular2mm(z_axis.position), phi_angular_target / 10.0, phi_axis.position / 10.0)
+                sleep(0.1)
 
-        except Exception as e:
+
+            # sleep(0.1)
+            #
+            #
+            #
+            #
+            #
+            # # if z_axis.speed == 0:
+            # #     z_axis.stop()
+            #
+            # z_axis.drive(speed=1000, current=1000)
+            # # z_target_mm += STEP_MM
+            # # z_axis.goto(0)
+            #
+            # z_angular = z_axis.position
+            # current_z_mm = z_angular2mm(z_angular)
+            # # z_angular = z_mm2angular(current_z_mm)
+            #
+            #
+            # phi_angular_target = phi_angular_from_z_mm(current_z_mm)
+            # phi_axis.goto(phi_angular_target)
+            #
+            # if z_target_mm >= total_length:
+            #     z_axis.stop()
+            #     phi_axis.stop()
+            #     break
+            #
+            # phi_axis.wait()
+            #
+            #
+
+            # sleep(0.1)
+
+        except Exception:
             # first stop all;
             reinit = True
-
-
-def reset_motors(phi_socket, z_socket):
-    # ensure we are @ zero!
-    sendall(z_socket, system_ticket(mode=2).encode())
-    sleep(0.5)
-    sendall(z_socket, system_ticket(mode=2).encode())
-    # sendall(phi_socket, system_ticket(mode=2).encode())
-    # sleep(0.5)
-    # sendall(phi_socket, system_ticket(mode=2).encode())
-
-
-
-
 
 
 if __name__ == "__main__":

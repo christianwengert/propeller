@@ -22,18 +22,18 @@ def control_ticket(mode: int, pos: int, speed: int=10000, current: int=20000, ac
 def system_ticket(mode: int):
     return f'<system mode="{mode}" />'
 
-
+extra = 20
 l0 = 100
 l1 = 162.5
 
 
 def phi_angular_from_z_mm(z) -> int:
 
-    first_slope_start = 10  # todo l0
+    first_slope_start = l0 + extra
     first_slope_end = first_slope_start + l1
     mid_point = first_slope_end + l0
     second_slope_start = mid_point + l0
-    second_slope_end = second_slope_start + l1
+    second_slope_end = second_slope_start + l1 + extra
 
     val = None
 
@@ -172,7 +172,7 @@ phi_axis = Axis(PHI)
 
 def main():
 
-    total_length = 4 * l0 + 2 * l1
+    total_length = 4 * l0 + 2 * l1 + 2 * extra
 
     z_axis.goto(0)
     phi_axis.goto(0)
@@ -180,7 +180,7 @@ def main():
     # z_axis.wait()
     # phi_axis.wait()
 
-    STEP_MM = 1
+    STEP_MM = 0.5
     z_target_mm = 0
     z_angular = phi_angular_target = 0
 

@@ -1,12 +1,12 @@
 # coding=utf-8
-from math import sin, cos, radians, degrees
+from math import sin, cos, radians, degrees, sqrt
 from time import sleep
 from src.python.propeller.axis import Axis
 from src.python.propeller.curve import PiecewiseLinearCurve
 import time
 
 
-P = 0.1
+P = 0.5
 
 CURRENT = 200
 
@@ -18,13 +18,13 @@ Z_AXIS = "192.168.178.11"
 PHI = "192.168.178.12"
 
 DIAMETER_MM = 45.0
-RADIUS_MM = DIAMETER_MM/2.0
+RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 2
+BLADE_SPEED_MMS = 0.1
 
-l0 = 100
-l1 = 162.5
-extra = 20
+l0 = 50 #100
+l1 = 100# 162.5
+extra = 0
 
 first_slope_start = l0 + extra
 first_slope_end = first_slope_start + l1
@@ -40,40 +40,40 @@ CURVE = [
     (second_slope_start, 90.0),
     (second_slope_end, 180.0),
 ]
-
+#
 TEST_CURVE = [
     (0.0, 0.0),
     (10.0, 0.0),
-    (20.0, 15.0),
-    (30.0, 15.0),
+    (20.0, 25.5),
+    (30.0, 25.5),
     (40.0, 0),
     (50.0, 0.0),
-    (60.0, 15.0),
-    (70.0, 15.0),
+    (60.0, 25.46),
+    (70.0, 25.46),
     (80.0, 0),
     (90.0, 0),
 ]
 
 
-
-TEST_CURVE = [
-    (0.0, 0.0),
-    (50.0, 0.0),
-
-]
+#
+# TEST_CURVE = [
+#     (0.0, 0.0),
+#     (50.0, 0.0),
+#
+# ]
 
 
 def deg_to_arclength(deg, radius):
     rad = radians(deg)
     return rad * radius
+#
+#
+# TEST_CURVE = [
+#     (x, deg_to_arclength(y, RADIUS_MM)) for x, y in TEST_CURVE
+# ]
 
 
-TEST_CURVE = [
-    (x, deg_to_arclength(y, RADIUS_MM)) for x, y in TEST_CURVE
-]
-
-
-curve = PiecewiseLinearCurve(TEST_CURVE)
+curve = PiecewiseLinearCurve(CURVE, 10)
 
 #
 # def z_mm_to_deg(m):
@@ -136,8 +136,8 @@ def main():
 
     start = time.time()
 
-    last_z = 0
-    last_phi = phi
+    # last_z = 0
+    # last_phi = phi
     # z_axis.drive(speed=1000, current=1000)
     while z <= curve.end:
 
@@ -155,34 +155,21 @@ def main():
             z = z_axis_status.position
             phi = phi_axis_status.position
 
-
-
-            # if z == last_z:
-            #     must_reset = True
-
-            #last_z = z
-
-            # v_z, v_phi = compute_target_speeds(z, phi)  # mm/s und ???
-
-            v_z = 0
-            v_phi = 10
-
-            print(phi)
-            if phi > 360.0:
-                break
-            # z_speed = z_axis_status.speed  # real RPM
+            v_z, v_phi = compute_target_speeds(z, phi)  # mm/s und deg/s
+            # print(v_z, v_phi * 27 / 3.14*180)
 
 
 
             z_axis.drive(v_z, CURRENT)
 
-            phi_axis.drive(v_phi * 27, CURRENT)
+            phi_axis.drive(v_phi * 10 / 3.14 * 180, CURRENT)
+            # print(v_phi)
+            #
+            # print('.')
 
-            print('.')
 
 
-
-            sleep(1)
+            sleep(0.1)
 
         except Exception:
             # first stop all;
@@ -202,11 +189,13 @@ def compute_target_speeds(z, phi):  # z in mm , phi in deg
     delta_angle = phi_target - phi  # deg
 
     target_angle = curve.get_slope_angle(z) + radians(P * delta_angle)  # rad
-
+    # print(degrees(target_angle))
     # print(z, phi, degrees(target_angle), degrees(curve.get_slope_angle(z)))
 
     v_z = BLADE_SPEED_MMS * cos(target_angle)
     v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM
+
+    print(phi, target_angle, v_z, v_phi * RADIUS_MM, sqrt(v_z**2 + (v_phi * RADIUS_MM)**2))
 
     return v_z, v_phi  # mm/s und rad/s
 

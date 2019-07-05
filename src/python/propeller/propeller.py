@@ -1,5 +1,5 @@
 # coding=utf-8
-from math import pi, sqrt, tan
+from math import sin, cos, radians
 from time import sleep
 from src.python.propeller.axis import Axis
 from src.python.propeller.curve import PiecewiseLinearCurve
@@ -11,38 +11,50 @@ P = 0.1
 
 CURRENT = 1000
 
-
 PITCH = 8
 FULL_TURN = 360.0
 
-ZAXIS = "192.168.178.11"
+Z_AXIS = "192.168.178.11"
 PHI = "192.168.178.12"
-
 
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM/2.0
 
-BLADE_SPEED_MMS = 0.02
+BLADE_SPEED_MMS = 0.5
 
 l0 = 100
 l1 = 162.5
+extra = 20
 
-first_slope_start = l0
+first_slope_start = l0 + extra
 first_slope_end = first_slope_start + l1
 mid_point = first_slope_end + l0
 second_slope_start = mid_point + l0
 second_slope_end = second_slope_start + l1
-total_length = second_slope_end + l0
+total_length = second_slope_end + l0 + extra
 
 CURVE = [
+    (0.0, 0.0),
     (first_slope_start, 0.0),
     (first_slope_end, 90.0),
     (second_slope_start, 90.0),
     (second_slope_end, 180.0),
 ]
 
+TEST_CURVE = [
+    (0.0, 0.0),
+    (10.0, 15.0),
+    (20.0, 15.0),
+    (30.0, 0),
+    (40.0, 0.0),
+    (50.0, 15.0),
+    (60.0, 15.0),
+    (70.0, 0),
+    (80.0, 0),
+]
 
-curve = PiecewiseLinearCurve(CURVE)
+
+curve = PiecewiseLinearCurve(TEST_CURVE)
 
 
 def phi_angular_from_z_mm_smooth(z: float, smoothing_distance: float) -> float:
@@ -54,7 +66,6 @@ def phi_angular_from_z_mm_smooth(z: float, smoothing_distance: float) -> float:
 
 
 def phi_angular_from_z_mm(z_pos) -> float:
-
     return curve[z_pos]
 
 
@@ -82,7 +93,7 @@ def move_axes(z_mm: float) -> None:
     phi_axis.goto(phi_angular)
 
 
-z_axis = Axis(ZAXIS, gear_ratio=FULL_TURN / PITCH)
+z_axis = Axis(Z_AXIS, gear_ratio=FULL_TURN / PITCH)
 phi_axis = Axis(PHI)
 
 
@@ -97,7 +108,7 @@ def main():
     phi = 0.0
 
     # z_axis.drive(speed=1000, current=1000)
-    while True:
+    while z <= total_length:
 
         # noinspection PyBroadException
         try:
@@ -123,23 +134,42 @@ def main():
             # first stop all;
             must_reset = True
 
+    z_axis.stop()
+    phi_axis.stop()
+
+    print('DONE')
+
 
 def compute_target_speeds(z, phi):
 
     phi_target = curve[z]
 
-    delta_slope = tan(phi_target - phi)
+    delta_angle = phi_target - phi
 
-    curve_slope = curve.get_slope(z) + P * delta_slope
+    target_angle = curve.get_slope_angle(z) + radians(P * delta_angle)
 
-    rad_factor = RADIUS_MM * pi / 180.0
-    speed_slope = curve_slope * rad_factor
-    speed_slope2 = speed_slope ** 2
-
-    v_z = BLADE_SPEED_MMS / sqrt(speed_slope2 + 1)
-    v_phi = BLADE_SPEED_MMS / sqrt(1.0 / speed_slope2 + 1) / rad_factor
+    v_z = BLADE_SPEED_MMS * cos(target_angle)
+    v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM
 
     return v_z, v_phi
+
+
+# def compute_target_speeds(z, phi):
+#
+#     phi_target = curve[z]
+#
+#     delta_slope = tan(phi_target - phi)
+#
+#     curve_slope = curve.get_slope(z) + P * delta_slope
+#
+#     rad_factor = RADIUS_MM * pi / 180.0
+#     speed_slope = curve_slope * rad_factor
+#     speed_slope2 = speed_slope ** 2
+#
+#     v_z = BLADE_SPEED_MMS / sqrt(speed_slope2 + 1)
+#     v_phi = BLADE_SPEED_MMS / sqrt(1.0 / speed_slope2 + 1) / rad_factor
+#
+#     return v_z, v_phi
 
 
 if __name__ == "__main__":

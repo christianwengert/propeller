@@ -101,8 +101,8 @@ class AxisStatus:
         # Position is in degrees * 10
 
         return AxisStatus(
-            ticket['Position'] / 10.0 / gear_ratio + p0,
-            ticket['Speed'] / gear_ratio * 6,
+            ticket['Position'],  # / 10.0 / gear_ratio + p0,
+            ticket['Speed'], # / gear_ratio * 6,
             ticket['torque'],
             ticket['Time']
         )

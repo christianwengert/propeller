@@ -1,5 +1,5 @@
 # coding=utf-8
-from math import sin, cos, radians, degrees
+from math import sin, cos, radians
 from time import sleep
 from src.python.propeller.axis import Axis
 from src.python.propeller.curve import PiecewiseLinearCurve
@@ -18,7 +18,7 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM/2.0
 
-BLADE_SPEED_MMS = 2
+BLADE_SPEED_MMS = 1000
 
 l0 = 100
 l1 = 162.5
@@ -56,6 +56,52 @@ TEST_CURVE = [
 curve = PiecewiseLinearCurve(TEST_CURVE)
 
 
+def phi_angular_from_z_mm_smooth(z: float, smoothing_distance: float) -> float:
+
+    phi1 = phi_angular_from_z_mm(z - smoothing_distance)
+    phi2 = phi_angular_from_z_mm(z + smoothing_distance)
+
+    return (phi1 + phi2) / 2
+
+
+def phi_angular_from_z_mm(z_pos) -> float:
+    return curve[z_pos]
+
+
+def z_mm2angular(z_mm: float) -> float:
+    return z_mm * FULL_TURN / PITCH
+
+
+def z_angular2mm(z_ang: float) -> float:
+    return z_ang / FULL_TURN * PITCH
+
+
+def compute_angular_axis_positions(z_mm: float) -> (float, float):
+
+    phi_angular = phi_angular_from_z_mm(z_mm)
+    z_angular = z_mm2angular(z_mm)
+
+    return z_angular, phi_angular
+
+
+def move_axes(z_mm: float) -> None:
+
+    z_angular, phi_angular = compute_angular_axis_positions(z_mm)
+
+    z_axis.goto(z_angular)
+    phi_axis.goto(phi_angular)
+
+
+z_axis = Axis(Z_AXIS, gear_ratio=1.0)
+phi_axis = Axis(PHI)
+
+
+# 1 RPM = 8mm/min
+# Wir kriegen 10*degrees
+# Wir wollen 100mm weit fahren
+# 100 / 8 = Anzahl umdrehungen
+# 100 / 8 * 360 * 10 = 100mm
+
 def z_mm_to_deg10(m):
     return m / 8.0 * 360.0 * 10.0
 
@@ -73,80 +119,67 @@ def z_mmps_to_rpm(m):
 
 
 def z_rpm_to_ticket(rpm):
-    return int(rpm * 294)
-
-
-
-def phi_degps_to_rpm(d):
-    return d * 60.0 / 360.0
-
-
-def phi_rpm_to_ticket(rpm):
-    return int(rpm * 294 * 27)  # 27 from gear
-
-
-z_axis = Axis(Z_AXIS)
-phi_axis = Axis(PHI)
+    return rpm * 294
 
 
 def main():
 
     z_axis.goto0()
-    phi_axis.goto0()
+    sleep(5)
+
+    z = 0.0
 
     must_reset = False
 
-    z = 0.0
-    phi = 0.0
+    import time
+    start = time.time()
 
-    # z_axis.drive(speed=1000, current=1000)
-    while z <= curve.end:
+    while z <= z_mm_to_deg10(50.0):
 
-        # noinspection PyBroadException
         try:
+
             if must_reset:
                 z_axis.reset(z)
-                phi_axis.reset(phi)
+
                 must_reset = False
-
+            z_axis.drive(speed=z_rpm_to_ticket(z_mmps_to_rpm(2)), current=CURRENT)
             z_axis_status = z_axis.status
-            phi_axis_status = phi_axis.status
+            z = z_axis_status.position
+            s = z_axis_status.speed
 
-            z = z_deg10_to_mm(z_axis_status.position)
-            phi = phi_axis_status.position / 10.0
 
-            v_z, v_phi = compute_target_speeds(z, phi)
 
-            z_axis.drive(z_rpm_to_ticket(z_mmps_to_rpm(v_z)), CURRENT)
+            print(z, z_deg10_to_mm(z), s, z_rpm_to_mmps(s))
 
-            phi_axis.drive(phi_rpm_to_ticket(phi_degps_to_rpm(degrees(v_phi))), CURRENT)
-
-            sleep(0.1)
+            sleep(1)
 
         except Exception:
             # first stop all;
             must_reset = True
 
+
+    end = time.time()
+    print(end-start)
+
     z_axis.stop()
-    phi_axis.stop()
 
     print('DONE')
 
 
-def compute_target_speeds(z, phi):  # z in mm , phi in deg
+def compute_target_speeds(z, phi):
 
     phi_target = curve[z]
 
-    delta_angle = phi_target - phi  # deg
+    delta_angle = phi_target - phi
 
-    target_angle = curve.get_slope_angle(z) + radians(P * delta_angle)  # rad
+    target_angle = curve.get_slope_angle(z) + radians(P * delta_angle)
 
-    print(z, phi, degrees(target_angle), degrees(curve.get_slope_angle(z)))
+    print(z, phi, target_angle, curve.get_slope_angle(z))
 
     v_z = BLADE_SPEED_MMS * cos(target_angle)
-    v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM
+    v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM * 1000
 
-    return v_z, v_phi  # mm/s und rad/s
+    return v_z, v_phi
 
 
 # def compute_target_speeds(z, phi):

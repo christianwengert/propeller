@@ -44,15 +44,15 @@ class PiecewiseLinearCurve:
 
         return _x * m + y1
 
-    def get_slope_angle(self, x: float, dx=0.1) -> float:
+    def get_slope_angle(self, x: float, dx=0.1) -> float:  # x: mm
 
         x1 = x - dx
         x2 = x + dx
 
-        y1 = self[x1]
-        y2 = self[x2]
+        y1 = self[x1]  # note: problem!!
+        y2 = self[x2]  # note: problem!!
 
-        return atan2(y2-y1, x2-x1)
+        return atan2(y2-y1, x2-x1)  # rad
 
     def get_slope(self, x: float, dx=0.1) -> float:
 

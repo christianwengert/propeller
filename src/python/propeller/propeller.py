@@ -8,7 +8,7 @@ import time
 
 P = 0.1
 
-CURRENT = 1000
+CURRENT = 200
 
 POSITION_CONST = 10.0
 PITCH = 8
@@ -58,8 +58,8 @@ TEST_CURVE = [
 
 TEST_CURVE = [
     (0.0, 0.0),
-    (50.0, 90.0),
-    (100.0, 90.0)
+    (50.0, 0.0),
+
 ]
 
 
@@ -155,16 +155,30 @@ def main():
             z = z_axis_status.position
             phi = phi_axis_status.position
 
-            if z == last_z:
-                must_reset = True
 
-            last_z = z
 
-            v_z, v_phi = compute_target_speeds(z, phi)
+            # if z == last_z:
+            #     must_reset = True
+
+            #last_z = z
+
+            # v_z, v_phi = compute_target_speeds(z, phi)  # mm/s und ???
+
+            v_z = 0
+            v_phi = 10
+
+            print(phi)
+            if phi > 360.0:
+                break
+            # z_speed = z_axis_status.speed  # real RPM
+
+
 
             z_axis.drive(v_z, CURRENT)
 
-            phi_axis.drive(v_phi, CURRENT)
+            phi_axis.drive(v_phi * 27, CURRENT)
+
+            print('.')
 
 
 
@@ -189,7 +203,7 @@ def compute_target_speeds(z, phi):  # z in mm , phi in deg
 
     target_angle = curve.get_slope_angle(z) + radians(P * delta_angle)  # rad
 
-    print(z, phi, degrees(target_angle), degrees(curve.get_slope_angle(z)))
+    # print(z, phi, degrees(target_angle), degrees(curve.get_slope_angle(z)))
 
     v_z = BLADE_SPEED_MMS * cos(target_angle)
     v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM

@@ -3,6 +3,7 @@ from math import sin, cos, radians, degrees
 from time import sleep
 from src.python.propeller.axis import Axis
 from src.python.propeller.curve import PiecewiseLinearCurve
+import time
 
 
 P = 0.1
@@ -54,6 +55,14 @@ TEST_CURVE = [
 ]
 
 
+
+TEST_CURVE = [
+    (0.0, 0.0),
+    (50.0, 90.0),
+    (100.0, 90.0)
+]
+
+
 def deg_to_arclength(deg, radius):
     rad = radians(deg)
     return rad * radius
@@ -66,48 +75,48 @@ TEST_CURVE = [
 
 curve = PiecewiseLinearCurve(TEST_CURVE)
 
-
-def z_mm_to_deg(m):
-    return m / PITCH * FULL_TURN
-
-
-def deg_to_z_mm(m):
-    return 1.0 / z_mm_to_deg(m)
-
-
-def z_mm_to_deg10(m):
-    return z_mm_to_deg(m) * POSITION_CONST
-
-
-def z_deg10_to_mm(d):
-    return d * 8.0 / 360.0 / 10.0
-
-
-def z_rpm_to_deg_s(s):
-    return s * 360 / 60
-
-
-def z_rpm_to_mmps(s):
-
-    deg_s = z_rpm_to_deg_s(s)
-    return deg_to_z_mm(deg_s)
-
-
-
-def z_mmps_to_rpm(m):
-    return m / 60 * 360 / 8 * 10
-
-
-def z_rpm_to_ticket(rpm):
-    return int(rpm * 294)
-
-
-def phi_degps_to_rpm(d):
-    return d * 60.0 / 360.0
-
-
-def phi_rpm_to_ticket(rpm):
-    return int(rpm * 294 * 27)  # 27 from gear
+#
+# def z_mm_to_deg(m):
+#     return m / PITCH * FULL_TURN
+#
+#
+# def deg_to_z_mm(m):
+#     return 1.0 / z_mm_to_deg(m)
+#
+#
+# def z_mm_to_deg10(m):
+#     return z_mm_to_deg(m) * POSITION_CONST
+#
+#
+# def z_deg10_to_mm(d):
+#     return d * 8.0 / 360.0 / 10.0
+#
+#
+# def z_rpm_to_deg_s(s):
+#     return s * 360 / 60
+#
+#
+# def z_rpm_to_mmps(s):
+#
+#     deg_s = z_rpm_to_deg_s(s)
+#     return deg_to_z_mm(deg_s)
+#
+#
+#
+# def z_mmps_to_rpm(m):
+#     return m / 60 * 360 / 8 * 10
+#
+#
+# def z_rpm_to_ticket(rpm):
+#     return int(rpm * 294)
+#
+#
+# def phi_degps_to_rpm(d):
+#     return d * 60.0 / 360.0
+#
+#
+# def phi_rpm_to_ticket(rpm):
+#     return int(rpm * 294 * 27)  # 27 from gear
 
 
 z_axis = Axis(Z_AXIS, FULL_TURN/PITCH)
@@ -118,17 +127,23 @@ def main():
 
     z_axis.goto0()
     phi_axis.goto0()
+    sleep(3)
 
     must_reset = False
 
     z = 0.0
     phi = 0.0
 
+    start = time.time()
+
+    last_z = 0
+    last_phi = phi
     # z_axis.drive(speed=1000, current=1000)
     while z <= curve.end:
 
         # noinspection PyBroadException
         try:
+
             if must_reset:
                 z_axis.reset(z)
                 phi_axis.reset(phi)
@@ -140,18 +155,26 @@ def main():
             z = z_axis_status.position
             phi = phi_axis_status.position
 
+            if z == last_z:
+                must_reset = True
+
+            last_z = z
+
             v_z, v_phi = compute_target_speeds(z, phi)
 
             z_axis.drive(v_z, CURRENT)
 
             phi_axis.drive(v_phi, CURRENT)
 
-            sleep(0.1)
+
+
+            sleep(1)
 
         except Exception:
             # first stop all;
             must_reset = True
 
+    print(time.time() - start)
     z_axis.stop()
     phi_axis.stop()
 

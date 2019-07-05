@@ -1,10 +1,10 @@
 from math import atan2
-from typing import List
+from typing import List, Tuple
 
 
 class PiecewiseLinearCurve:
 
-    def __init__(self, points: List[(float, float)], smoothing_distance: float = 0.0):
+    def __init__(self, points: List[Tuple[float, float]], smoothing_distance: float = 0.0):
 
         if len(points) < 2:
             raise ValueError('must provide at least two points')
@@ -12,6 +12,10 @@ class PiecewiseLinearCurve:
         self._smoothing_distance = smoothing_distance
         self._points = points[:]
         self._points.sort(key=lambda p: p[0])
+
+    @property
+    def end(self):
+        return self._points[-1][0]
 
     def _clamp_x(self, value: float) -> float:
 
@@ -22,7 +26,7 @@ class PiecewiseLinearCurve:
         x = self._clamp_x(x)   # effectively extends the curve to +- infinity
 
         for i in range(len(self._points)):
-            if x <= self._points[i][0]:
+            if x <= self._points[i + 1][0]:
                 return self._points[i], self._points[i + 1]
 
         raise Exception('this should not happen')

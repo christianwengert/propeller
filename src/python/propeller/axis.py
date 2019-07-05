@@ -21,6 +21,7 @@ class Axis:
         self._axis_ip_address = axis_ip_address
 
         self._socket = self._init_socket()
+        self._p0 = 0.0
         self._p0 = p0 if p0 is not None else self.status.position
 
     def _init_socket(self):
@@ -44,6 +45,10 @@ class Axis:
         ticket = create_control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=target)
         self._socket.sendall(ticket)
 
+    def goto0(self):
+        ticket = create_control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=0)
+        self._socket.sendall(ticket)
+
     def drive(self, speed, current):
         ticket = create_control_ticket(mode=SPEED_CONTROL, speed=speed * self._gear_ratio, current=current, pos=0)
         self._socket.sendall(ticket)
@@ -58,7 +63,7 @@ class Axis:
 
         last_msg = data.split('<')[-1].split('/>')[0]
 
-        return AxisStatus.parse(last_msg, self._p0)
+        return AxisStatus.parse(last_msg, self._gear_ratio, self._p0)
 
     def _read_from_socket(self):
         return self._socket.recv(1024 * 1024).decode(encoding='utf-8')
@@ -93,9 +98,11 @@ class AxisStatus:
 
         ticket = parse_status_ticket(raw_msg)
 
+        # Position is in degrees * 10
+
         return AxisStatus(
             ticket['Position'] / 10.0 / gear_ratio + p0,
             ticket['Speed'] / gear_ratio * 6,
-            ticket['Torque'],
+            ticket['torque'],
             ticket['Time']
         )

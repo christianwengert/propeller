@@ -1,5 +1,8 @@
-def create_control_ticket(mode: int, pos: float, speed: float, current=600.0, acc=200000.0, decc=200000.0) -> bytes:
+import re
 
+
+def create_control_ticket(mode: int, pos: float, speed: float, current=600.0, acc=200000.0, decc=200000.0) -> bytes:
+    print(int(speed/6))
     ticket = f'<control pos="{int(pos*10)}" speed="{int(speed/6)}" current="{int(current)}" mode="{mode}" acc="{int(acc)}" decc="{int(decc)}" />'
     return ticket.encode(encoding='utf-8')
 
@@ -10,22 +13,10 @@ def create_system_ticket(mode: int) -> bytes:
     return ticket.encode(encoding='utf-8')
 
 
-def _parse_field(field: str) -> (str, int):
-
-    key, value = field.split('=')
-
-    return key.strip(' '), int(value.strip(' ').strip('"'))
-
-
 def parse_status_ticket(msg: str):
 
-    fields = msg.split(' ')
-
-    if 'HDrive' not in fields[0]:
-        raise ValueError('not a valid HDrive ticket')
-
-    return dict(map(_parse_field, fields[1:-1]))
-
+    m = re.match(r'.*Position=\"\s*(-?[0-9]+).*Speed=\"\s*(-?[0-9]+).*torque=\"\s*(-?[0-9]+).*Time=\"\s*(-?[0-9]+)', msg)
+    return dict(zip(['Position', 'Speed', 'torque', 'Time'], map(int, m.groups())))
 
 def contains_complete_ticket(data: str):
 

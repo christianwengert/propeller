@@ -5,8 +5,6 @@ from src.python.propeller.axis import Axis
 from src.python.propeller.curve import PiecewiseLinearCurve
 
 
-Z_SPEED = 1000
-
 P = 0.1
 
 CURRENT = 1000
@@ -20,7 +18,7 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM/2.0
 
-BLADE_SPEED_MMS = 0.5
+BLADE_SPEED_MMS = 1000
 
 l0 = 100
 l1 = 162.5
@@ -43,14 +41,15 @@ CURVE = [
 
 TEST_CURVE = [
     (0.0, 0.0),
-    (10.0, 15.0),
+    (10.0, 0.0),
     (20.0, 15.0),
-    (30.0, 0),
-    (40.0, 0.0),
-    (50.0, 15.0),
+    (30.0, 15.0),
+    (40.0, 0),
+    (50.0, 0.0),
     (60.0, 15.0),
-    (70.0, 0),
+    (70.0, 15.0),
     (80.0, 0),
+    (90.0, 0),
 ]
 
 
@@ -99,8 +98,8 @@ phi_axis = Axis(PHI)
 
 def main():
 
-    z_axis.goto(0)
-    phi_axis.goto(0)
+    z_axis.goto0()
+    phi_axis.goto0()
 
     must_reset = False
 
@@ -108,7 +107,7 @@ def main():
     phi = 0.0
 
     # z_axis.drive(speed=1000, current=1000)
-    while z <= total_length:
+    while z <= curve.end:
 
         # noinspection PyBroadException
         try:
@@ -148,8 +147,10 @@ def compute_target_speeds(z, phi):
 
     target_angle = curve.get_slope_angle(z) + radians(P * delta_angle)
 
+    print(z, phi, target_angle, curve.get_slope_angle(z))
+
     v_z = BLADE_SPEED_MMS * cos(target_angle)
-    v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM
+    v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM * 1000
 
     return v_z, v_phi
 

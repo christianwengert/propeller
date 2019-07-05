@@ -9,6 +9,7 @@ P = 0.1
 
 CURRENT = 1000
 
+POSITION_CONST = 10.0
 PITCH = 8
 FULL_TURN = 360.0
 
@@ -53,19 +54,44 @@ TEST_CURVE = [
 ]
 
 
+def deg_to_arclength(deg, radius):
+    rad = radians(deg)
+    return rad * radius
+
+
+TEST_CURVE = [
+    (x, deg_to_arclength(y, RADIUS_MM)) for x, y in TEST_CURVE
+]
+
+
 curve = PiecewiseLinearCurve(TEST_CURVE)
 
 
+def z_mm_to_deg(m):
+    return m / PITCH * FULL_TURN
+
+
+def deg_to_z_mm(m):
+    return 1.0 / z_mm_to_deg(m)
+
+
 def z_mm_to_deg10(m):
-    return m / 8.0 * 360.0 * 10.0
+    return z_mm_to_deg(m) * POSITION_CONST
 
 
 def z_deg10_to_mm(d):
     return d * 8.0 / 360.0 / 10.0
 
 
+def z_rpm_to_deg_s(s):
+    return s * 360 / 60
+
+
 def z_rpm_to_mmps(s):
-    return s * 60 / 360.0 * 8 / 10.0
+
+    deg_s = z_rpm_to_deg_s(s)
+    return deg_to_z_mm(deg_s)
+
 
 
 def z_mmps_to_rpm(m):
@@ -76,7 +102,6 @@ def z_rpm_to_ticket(rpm):
     return int(rpm * 294)
 
 
-
 def phi_degps_to_rpm(d):
     return d * 60.0 / 360.0
 
@@ -85,7 +110,7 @@ def phi_rpm_to_ticket(rpm):
     return int(rpm * 294 * 27)  # 27 from gear
 
 
-z_axis = Axis(Z_AXIS)
+z_axis = Axis(Z_AXIS, FULL_TURN/PITCH)
 phi_axis = Axis(PHI)
 
 
@@ -112,14 +137,14 @@ def main():
             z_axis_status = z_axis.status
             phi_axis_status = phi_axis.status
 
-            z = z_deg10_to_mm(z_axis_status.position)
-            phi = phi_axis_status.position / 10.0
+            z = z_axis_status.position
+            phi = phi_axis_status.position
 
             v_z, v_phi = compute_target_speeds(z, phi)
 
-            z_axis.drive(z_rpm_to_ticket(z_mmps_to_rpm(v_z)), CURRENT)
+            z_axis.drive(v_z, CURRENT)
 
-            phi_axis.drive(phi_rpm_to_ticket(phi_degps_to_rpm(degrees(v_phi))), CURRENT)
+            phi_axis.drive(v_phi, CURRENT)
 
             sleep(0.1)
 

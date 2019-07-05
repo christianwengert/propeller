@@ -4,13 +4,15 @@ from time import sleep
 
 from src.python.propeller.tickets import create_control_ticket, parse_status_ticket, contains_complete_ticket
 
-SOCKET_TIMEOUT = 1.0 #secs
+SOCKET_TIMEOUT = 1.0  # secs
 
 POS_CONTROL = 129
 SPEED_CONTROL = 8
 CURRENT = 1000
 SPEED = 1000
 PORT = 1000
+
+STEPS = 294
 
 
 class Axis:
@@ -40,9 +42,8 @@ class Axis:
                 sleep(SOCKET_TIMEOUT)
 
     def goto(self, position):
-
         target = position * self._gear_ratio - self._p0
-        ticket = create_control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=target)
+        ticket = create_control_ticket(mode=POS_CONTROL, speed=SPEED, current=CURRENT, pos=int(target*10))
         self._socket.sendall(ticket)
 
     def goto0(self):
@@ -50,7 +51,8 @@ class Axis:
         self._socket.sendall(ticket)
 
     def drive(self, speed, current):
-        ticket = create_control_ticket(mode=SPEED_CONTROL, speed=speed * self._gear_ratio, current=current, pos=0)
+        rpm = speed * self._gear_ratio * STEPS
+        ticket = create_control_ticket(mode=SPEED_CONTROL, speed=rpm, current=current, pos=0)
         self._socket.sendall(ticket)
 
     @property
@@ -101,8 +103,8 @@ class AxisStatus:
         # Position is in degrees * 10
 
         return AxisStatus(
-            ticket['Position'],  # / 10.0 / gear_ratio + p0,
-            ticket['Speed'], # / gear_ratio * 6,
+            ticket['Position'] / 10.0 / gear_ratio + p0,
+            ticket['Speed'],
             ticket['torque'],
             ticket['Time']
         )

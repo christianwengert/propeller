@@ -1,4 +1,6 @@
 # coding=utf-8
+import select
+import sys
 from math import sin, cos, radians, sqrt
 from time import sleep
 from src.python.propeller.axis import Axis
@@ -161,6 +163,20 @@ def main():
     # last_phi = phi
     # z_axis.drive(speed=1000, current=1000)
     while z <= curve.end:
+
+        input1 = select.select([sys.stdin], [], [], 1)[0]
+        if input1:
+            value = sys.stdin.readline().rstrip()
+            print(f'you typed "{value}"')
+            if value == 'stop':
+                while True:
+                    print('waiting for c\n')
+                    input2 = select.select([sys.stdin], [], [], 1)[0]
+                    if input2:
+                        value2 = sys.stdin.readline().rstrip()
+                        if value2 == 'continue':
+                            break
+
 
         # noinspection PyBroadException
         try:

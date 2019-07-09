@@ -1,10 +1,31 @@
 # coding=utf-8
-from math import sin, cos, radians, degrees, sqrt
+from math import sin, cos, radians, sqrt
 from time import sleep
 from src.python.propeller.axis import Axis
 from src.python.propeller.curve import PiecewiseLinearCurve
 import time
 
+"""
+0.1 s und eng gespannt: reisst immer
+0.33333 und weniger eng gespannt 
+
+0.1s darauf achten, dass die halter schon in der verleangerung des saegeblatts sind
+      uns sehr eng gespannt
+      
+naechster versich: oben gar nicht so fest spannen
+niederhalter nicht zu fest sonst slipping
+
+
+9.7.2019
+- oben locker
+- stark gespannt (1kHz)
+- nicht zu fest der niederhalter
+- 2-3mm spiel am blatt
+- oben gar nicht fiuxiert
+- blatt nach links oben und unten schieben
+- blade speed 0.1mm/s
+
+"""
 
 P = 0.5
 
@@ -20,11 +41,11 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 0.05
+BLADE_SPEED_MMS = 0.1
 
-l0 = 50 #100
-l1 = 100# 162.5
-extra = 0
+l0 = 100
+l1 = 162.5
+extra = 15
 
 first_slope_start = l0 + extra
 first_slope_end = first_slope_start + l1
@@ -158,16 +179,12 @@ def main():
             v_z, v_phi = compute_target_speeds(z, phi)  # mm/s und deg/s
             # print(v_z, v_phi * 27 / 3.14*180)
 
-
-
             z_axis.drive(v_z, CURRENT)
 
             phi_axis.drive(v_phi * 10 / 3.14 * 180, CURRENT)
             # print(v_phi)
             #
             # print('.')
-
-
 
             sleep(0.1)
 
@@ -195,6 +212,7 @@ def compute_target_speeds(z, phi):  # z in mm , phi in deg
     v_z = BLADE_SPEED_MMS * cos(target_angle)
     v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM
 
+    # print(f'{phi:.2}\t{target_angle:.2}')
     print(phi, target_angle, v_z, v_phi * RADIUS_MM, sqrt(v_z**2 + (v_phi * RADIUS_MM)**2))
 
     return v_z, v_phi  # mm/s und rad/s

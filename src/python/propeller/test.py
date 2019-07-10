@@ -2,7 +2,7 @@ import random
 from math import atan2, radians, cos, sin, degrees
 
 
-P = 0.0
+P = 0.1
 
 
 TEST_CURVE = [
@@ -26,9 +26,9 @@ SIMULATED_CURVE = [
     (7, 0),
     (8, 0),
     (9, 0),
-    (10, 1.5),
-    (11, 3),
-    (12, 4.5),
+    (10, 0),
+    (11, 0),
+    (12, 3),
     (13, 6),
     (14, 7.5),
     (15, 9),
@@ -100,8 +100,8 @@ def phi_rpm_to_ticket(rpm):
 
 NOISY_CURVE = []
 for sim_z, sim_phi in SIMULATED_CURVE:
-    z = z_mm_to_deg10(sim_z + 0.1 * (random.random() - 0.5))
-    phi = 10.0 * (sim_phi + 0.1 * (random.random() - 0.5))
+    z = z_mm_to_deg10(sim_z + 0.0 * (random.random() - 0.5))
+    phi = 10.0 * (sim_phi + 0.0 * (random.random() - 0.5))
     NOISY_CURVE.append((z, phi))
 
 
@@ -114,29 +114,13 @@ def get_slope_angle(x: float, dx=0.1) -> float:  # x: mm
     x1 = x - dx
     x2 = x + dx
 
-    y1 = radians(get_phi(x1)) * RADIUS_MM
-    y2 = radians(get_phi(x2)) * RADIUS_MM
+    y1 = radians(get_target_phi(x1)) * RADIUS_MM
+    y2 = radians(get_target_phi(x2)) * RADIUS_MM
 
     return atan2(y2 - y1, x2 - x1)  # rad
 
 
-def compute_target_speeds(z, phi):  # z in mm , phi in deg
-
-    phi_target = get_phi(z)
-
-    delta_angle = phi_target - phi  # deg
-    #
-    target_angle = get_slope_angle(z) + radians(P * delta_angle)  # rad
-
-    # print(z, phi, degrees(target_angle), degrees(curve.get_slope_angle(z)))
-
-    v_z = BLADE_SPEED_MMS * cos(target_angle)
-    v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM
-
-    return v_z, v_phi  # mm/s und rad/s
-
-
-def get_phi(z):
+def get_target_phi(z):
     phi = 0
     for i in range(len(TEST_CURVE) - 1):
         if z <= TEST_CURVE[i + 1][0]:
@@ -149,17 +133,31 @@ def main():
 
     # lets test
 
-    for sim_z, sim_phi in SIMULATED_CURVE:
+    for sim_z, sim_phi in NOISY_CURVE:
 
-        z = z_deg10_to_mm(sim_z)
-        phi = sim_phi / 10.0
+        z = z_deg10_to_mm(sim_z)  # conversion as in propeller: [mm]
+        phi = sim_phi / 10.0  # conversion as in propeller: [deg]
 
-        v_z, v_phi = compute_target_speeds(z, phi)
+        phi_target = get_target_phi(z)  # [deg]
 
-        z_speed = z_rpm_to_ticket(z_mmps_to_rpm(v_z))
-        phi_speed = phi_rpm_to_ticket(phi_degps_to_rpm(degrees(v_phi)))
+        delta_angle = phi_target - phi  # [deg]
 
-        print(z_speed, phi_speed)
+        target_angle = get_slope_angle(z) + radians(P * delta_angle)  # rad
+
+        # v_z = BLADE_SPEED_MMS * cos(target_angle)
+        v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM
+
+        print(delta_angle, degrees(target_angle), v_phi)
+
+
+
+
+        # compute_target_speeds(z, phi)
+
+        # z_speed = z_rpm_to_ticket(z_mmps_to_rpm(v_z))
+        # phi_speed = phi_rpm_to_ticket(phi_degps_to_rpm(degrees(v_phi)))
+        #
+        # print(v_z, v_phi)
 
 
 if __name__ == "__main__":

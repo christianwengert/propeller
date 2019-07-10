@@ -78,68 +78,12 @@ TEST_CURVE = [
 ]
 
 
-#
-# TEST_CURVE = [
-#     (0.0, 0.0),
-#     (50.0, 0.0),
-#
-# ]
-
-
 def deg_to_arclength(deg, radius):
     rad = radians(deg)
     return rad * radius
-#
-#
-# TEST_CURVE = [
-#     (x, deg_to_arclength(y, RADIUS_MM)) for x, y in TEST_CURVE
-# ]
 
 
 curve = PiecewiseLinearCurve(CURVE, 10)
-
-#
-# def z_mm_to_deg(m):
-#     return m / PITCH * FULL_TURN
-#
-#
-# def deg_to_z_mm(m):
-#     return 1.0 / z_mm_to_deg(m)
-#
-#
-# def z_mm_to_deg10(m):
-#     return z_mm_to_deg(m) * POSITION_CONST
-#
-#
-# def z_deg10_to_mm(d):
-#     return d * 8.0 / 360.0 / 10.0
-#
-#
-# def z_rpm_to_deg_s(s):
-#     return s * 360 / 60
-#
-#
-# def z_rpm_to_mmps(s):
-#
-#     deg_s = z_rpm_to_deg_s(s)
-#     return deg_to_z_mm(deg_s)
-#
-#
-#
-# def z_mmps_to_rpm(m):
-#     return m / 60 * 360 / 8 * 10
-#
-#
-# def z_rpm_to_ticket(rpm):
-#     return int(rpm * 294)
-#
-#
-# def phi_degps_to_rpm(d):
-#     return d * 60.0 / 360.0
-#
-#
-# def phi_rpm_to_ticket(rpm):
-#     return int(rpm * 294 * 27)  # 27 from gear
 
 
 z_axis = Axis(Z_AXIS, FULL_TURN/PITCH)
@@ -159,24 +103,8 @@ def main():
 
     start = time.time()
 
-    # last_z = 0
-    # last_phi = phi
-    # z_axis.drive(speed=1000, current=1000)
     while z <= curve.end:
-
-        input1 = select.select([sys.stdin], [], [], 1)[0]
-        if input1:
-            value = sys.stdin.readline().rstrip()
-            print(f'you typed "{value}"')
-            if value == 'stop':
-                while True:
-                    print('waiting for c\n')
-                    input2 = select.select([sys.stdin], [], [], 1)[0]
-                    if input2:
-                        value2 = sys.stdin.readline().rstrip()
-                        if value2 == 'continue':
-                            break
-
+        check_for_pause()
 
         # noinspection PyBroadException
         try:
@@ -213,6 +141,22 @@ def main():
     phi_axis.stop()
 
     print('DONE')
+
+
+def check_for_pause():
+    kb_input = select.select([sys.stdin], [], [], 1)[0]
+    if kb_input:
+        value = sys.stdin.readline().rstrip()
+        print(f'you typed "{value}"')
+        if value.lower() in ['s', 'stop']:
+            print('Type "c" or "continue" to continue\n')
+            while True:
+
+                input2 = select.select([sys.stdin], [], [], 1)[0]
+                if input2:
+                    value2 = sys.stdin.readline().rstrip()
+                    if value2.lower() in ['c', 'continue']:
+                        break
 
 
 def compute_target_speeds(z, phi):  # z in mm , phi in deg

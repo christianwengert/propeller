@@ -92,9 +92,9 @@ phi_axis = Axis(PHI)
 
 def main():
 
-    z_axis.goto0()
-    phi_axis.goto0()
-    sleep(3)
+    # z_axis.goto0()
+    # phi_axis.goto0()
+    # sleep(3)
 
     must_reset = False
 
@@ -149,6 +149,8 @@ def check_for_pause():
         value = sys.stdin.readline().rstrip()
         print(f'you typed "{value}"')
         if value.lower() in ['s', 'stop']:
+            z_axis.drive(0, CURRENT)
+            phi_axis.drive(0, CURRENT)
             print('Type "c" or "continue" to continue\n')
             while True:
 

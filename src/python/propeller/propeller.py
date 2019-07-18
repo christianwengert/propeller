@@ -62,6 +62,7 @@ CURVE = [
     (first_slope_end, 90.0),
     (second_slope_start, 90.0),
     (second_slope_end, 180.0),
+    (total_length, 180.0),  # todo last point must be included
 ]
 #
 TEST_CURVE = [
@@ -84,6 +85,7 @@ def deg_to_arclength(deg, radius):
 
 
 curve = PiecewiseLinearCurve(CURVE, 10)
+print(curve.end)
 
 print(f'ETA {curve.end/BLADE_SPEED_MMS/60:.1f} minutes')
 

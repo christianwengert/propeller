@@ -93,10 +93,6 @@ phi_axis = Axis(PHI)
 
 def main():
 
-    # z_axis.goto0()
-    # phi_axis.goto0()
-    # sleep(3)
-
     must_reset = False
 
     z = 0.0

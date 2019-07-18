@@ -29,7 +29,7 @@ niederhalter nicht zu fest sonst slipping
 
 """
 
-P = 0.5
+P = 0.333333
 
 CURRENT = 200
 
@@ -43,7 +43,7 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 0.1
+BLADE_SPEED_MMS = 0.3333333
 
 l0 = 100
 l1 = 162.5
@@ -85,6 +85,7 @@ def deg_to_arclength(deg, radius):
 
 curve = PiecewiseLinearCurve(CURVE, 10)
 
+print(f'ETA {curve.end/BLADE_SPEED_MMS/60:.1f} minutes')
 
 z_axis = Axis(Z_AXIS, FULL_TURN/PITCH)
 phi_axis = Axis(PHI)

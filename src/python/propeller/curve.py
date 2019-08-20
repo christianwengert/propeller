@@ -40,7 +40,7 @@ class PiecewiseLinearCurve:
         dx = x2 - x1
         dy = y2 - y1
 
-        m = dy/dx
+        m = dy / dx
 
         return _x * m + y1
 

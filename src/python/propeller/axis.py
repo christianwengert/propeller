@@ -96,14 +96,14 @@ class AxisStatus:
         self.position = position
 
     @classmethod
-    def parse(cls, raw_msg: str, gear_ratio=1.0, p0=0.0):
+    def parse(cls, raw_msg: str, gear_ratio=1.0, _p0=0.0):
 
         ticket = parse_status_ticket(raw_msg)
 
         # Position is in degrees * 10
 
         return AxisStatus(
-            ticket['Position'] / 10.0 / gear_ratio , #+ p0,
+            ticket['Position'] / 10.0 / gear_ratio,  # + p0,
             ticket['Speed'],
             ticket['torque'],
             ticket['Time']

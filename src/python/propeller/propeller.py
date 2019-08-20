@@ -43,11 +43,11 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 0.3333333
+BLADE_SPEED_MMS = 0.2
 
-l0 = 100
+l0 = 100.0
 l1 = 162.5
-extra = 15
+extra = 15.0
 
 first_slope_start = l0 + extra
 first_slope_end = first_slope_start + l1
@@ -79,15 +79,16 @@ TEST_CURVE = [
 ]
 
 
-def deg_to_arclength(deg, radius):
+def deg_to_arclength(deg: float, radius: float) -> float:
     rad = radians(deg)
     return rad * radius
 
 
-curve = PiecewiseLinearCurve(CURVE, 10)
+curve = PiecewiseLinearCurve(CURVE, 10.0)
 print(curve.end)
 
-print(f'ETA {curve.end/BLADE_SPEED_MMS/60:.1f} minutes')
+print(f'Part length: {curve.end:.1f} [mm]')
+print(f'ETA: {curve.end/BLADE_SPEED_MMS/60:.1f} [minutes]')
 
 z_axis = Axis(Z_AXIS, FULL_TURN/PITCH)
 phi_axis = Axis(PHI)
@@ -177,24 +178,6 @@ def compute_target_speeds(z, phi):  # z in mm , phi in deg
     print(phi, target_angle, v_z, v_phi * RADIUS_MM, sqrt(v_z**2 + (v_phi * RADIUS_MM)**2))
 
     return v_z, v_phi  # mm/s und rad/s
-
-
-# def compute_target_speeds(z, phi):
-#
-#     phi_target = curve[z]
-#
-#     delta_slope = tan(phi_target - phi)
-#
-#     curve_slope = curve.get_slope(z) + P * delta_slope
-#
-#     rad_factor = RADIUS_MM * pi / 180.0
-#     speed_slope = curve_slope * rad_factor
-#     speed_slope2 = speed_slope ** 2
-#
-#     v_z = BLADE_SPEED_MMS / sqrt(speed_slope2 + 1)
-#     v_phi = BLADE_SPEED_MMS / sqrt(1.0 / speed_slope2 + 1) / rad_factor
-#
-#     return v_z, v_phi
 
 
 if __name__ == "__main__":

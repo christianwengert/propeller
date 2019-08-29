@@ -31,6 +31,8 @@ niederhalter nicht zu fest sonst slipping
 
 P = 0.333333
 
+DIRECTION = 1
+
 CURRENT = 200
 
 POSITION_CONST = 10.0
@@ -43,7 +45,7 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 0.2
+BLADE_SPEED_MMS = 0.05  # 0.5 is in the rather fast side!
 
 l0 = 100.0
 l1 = 162.5
@@ -125,7 +127,7 @@ def main():
 
             z_axis.drive(v_z, CURRENT)
 
-            phi_axis.drive(v_phi * 10 / 3.14 * 180, CURRENT)
+            phi_axis.drive(DIRECTION * v_phi * 10 / 3.14 * 180,  DIRECTION * CURRENT)
             # print(v_phi)
             #
             # print('.')
@@ -175,7 +177,7 @@ def compute_target_speeds(z, phi):  # z in mm , phi in deg
     v_phi = BLADE_SPEED_MMS * sin(target_angle) / RADIUS_MM
 
     # print(f'{phi:.2}\t{target_angle:.2}')
-    print(phi, target_angle, v_z, v_phi * RADIUS_MM, sqrt(v_z**2 + (v_phi * RADIUS_MM)**2))
+    print(z, phi, target_angle, v_z, v_phi * RADIUS_MM, sqrt(v_z**2 + (v_phi * RADIUS_MM)**2))
 
     return v_z, v_phi  # mm/s und rad/s
 

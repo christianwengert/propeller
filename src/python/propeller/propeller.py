@@ -29,9 +29,8 @@ niederhalter nicht zu fest sonst slipping
 
 """
 
-P = 0.333333
+P = 0.5
 
-DIRECTION = 1
 
 CURRENT = 200
 
@@ -58,13 +57,19 @@ second_slope_start = mid_point + l0
 second_slope_end = second_slope_start + l1
 total_length = second_slope_end + l0 + extra
 
+
+STRAIGHT_CURVE = [
+    (0.0, 0.0),
+    (600.0, 0.0)
+]
+
 CURVE = [
     (0.0, 0.0),
     (first_slope_start, 0.0),
-    (first_slope_end, 90.0),
-    (second_slope_start, 90.0),
-    (second_slope_end, 180.0),
-    (total_length, 180.0),  # todo last point must be included
+    (first_slope_end, -90.0),
+    (second_slope_start, -90.0),
+    (second_slope_end, -180.0),
+    (total_length, -180.0),  # todo last point must be included
 ]
 #
 TEST_CURVE = [
@@ -86,7 +91,7 @@ def deg_to_arclength(deg: float, radius: float) -> float:
     return rad * radius
 
 
-curve = PiecewiseLinearCurve(CURVE, 10.0)
+curve = PiecewiseLinearCurve(CURVE, 0.0)
 print(curve.end)
 
 print(f'Part length: {curve.end:.1f} [mm]')
@@ -127,7 +132,7 @@ def main():
 
             z_axis.drive(v_z, CURRENT)
 
-            phi_axis.drive(DIRECTION * v_phi * 10 / 3.14 * 180,  DIRECTION * CURRENT)
+            phi_axis.drive(v_phi * 10 / 3.14 * 180,  CURRENT)
             # print(v_phi)
             #
             # print('.')

@@ -63,15 +63,26 @@ STRAIGHT_CURVE = [
     (600.0, 0.0)
 ]
 
-CURVE = [
+CLOCKWISE_CURVE = [
+    (0.0, 0.0),
+    (first_slope_start, 0.0),
+    (first_slope_end, 90.0),
+    (second_slope_start, 90.0),
+    (second_slope_end, 180.0),
+    (total_length, 180.0),  # note: last point must be included
+]
+
+
+COUNTERCLOCKWISE_CURVE = [
     (0.0, 0.0),
     (first_slope_start, 0.0),
     (first_slope_end, -90.0),
     (second_slope_start, -90.0),
     (second_slope_end, -180.0),
-    (total_length, -180.0),  # todo last point must be included
+    (total_length, -180.0),  # note: last point must be included
 ]
 #
+
 TEST_CURVE = [
     (0.0, 0.0),
     (10.0, 0.0),
@@ -91,7 +102,7 @@ def deg_to_arclength(deg: float, radius: float) -> float:
     return rad * radius
 
 
-curve = PiecewiseLinearCurve(CURVE, 0.0)
+curve = PiecewiseLinearCurve(COUNTERCLOCKWISE_CURVE, 0.0)  # note: was 10
 print(curve.end)
 
 print(f'Part length: {curve.end:.1f} [mm]')

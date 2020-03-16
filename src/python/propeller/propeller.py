@@ -44,18 +44,19 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 0.05  # 0.5 is in the rather fast side!
+BLADE_SPEED_MMS = 0.03  # 0.5 is in the rather fast side! 0.05
 
 l0 = 100.0
 l1 = 162.5
-extra = 15.0
+extra = 5
 
 first_slope_start = l0 + extra
 first_slope_end = first_slope_start + l1
 mid_point = first_slope_end + l0
 second_slope_start = mid_point + l0
 second_slope_end = second_slope_start + l1
-total_length = second_slope_end + l0 + extra
+cut_end = second_slope_end + l0
+total_length = cut_end
 
 
 STRAIGHT_CURVE = [
@@ -65,21 +66,32 @@ STRAIGHT_CURVE = [
 
 CLOCKWISE_CURVE = [
     (0.0, 0.0),
+    (extra, 0.0),
+    (extra, 180.0),
+    (extra, 0.0),
     (first_slope_start, 0.0),
     (first_slope_end, 90.0),
     (second_slope_start, 90.0),
     (second_slope_end, 180.0),
-    (total_length, 180.0),  # note: last point must be included
+    (cut_end, 180.0),
+    (cut_end, 0.0),
+
+    # note: last point must be included
 ]
 
 
 COUNTERCLOCKWISE_CURVE = [
     (0.0, 0.0),
+    (extra, 0.0),
+    (extra, 180.0),
+    (extra, 0.0),
     (first_slope_start, 0.0),
     (first_slope_end, -90.0),
     (second_slope_start, -90.0),
     (second_slope_end, -180.0),
-    (total_length, -180.0),  # note: last point must be included
+    (cut_end, -180.0),
+    (cut_end, 0.0),
+    # note: last point must be included
 ]
 #
 
@@ -102,7 +114,7 @@ def deg_to_arclength(deg: float, radius: float) -> float:
     return rad * radius
 
 
-curve = PiecewiseLinearCurve(COUNTERCLOCKWISE_CURVE, 0.0)  # note: was 10
+curve = PiecewiseLinearCurve(COUNTERCLOCKWISE_CURVE, 10.0)  # note: was 10
 print(curve.end)
 
 print(f'Part length: {curve.end:.1f} [mm]')

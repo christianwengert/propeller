@@ -56,7 +56,7 @@ mid_point = first_slope_end + l0
 second_slope_start = mid_point + l0
 second_slope_end = second_slope_start + l1
 cut_end = second_slope_end + l0
-total_length = cut_end
+total_length = cut_end + extra
 
 
 STRAIGHT_CURVE = [
@@ -75,6 +75,7 @@ CLOCKWISE_CURVE = [
     (second_slope_end, 180.0),
     (cut_end, 180.0),
     (cut_end, 0.0),
+    (total_length, 0.0),
 
     # note: last point must be included
 ]
@@ -91,6 +92,8 @@ COUNTERCLOCKWISE_CURVE = [
     (second_slope_end, -180.0),
     (cut_end, -180.0),
     (cut_end, 0.0),
+    (total_length, 0.0),
+
     # note: last point must be included
 ]
 #

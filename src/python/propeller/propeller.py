@@ -6,6 +6,7 @@ from time import sleep
 from src.python.propeller.axis import Axis
 from src.python.propeller.curve import PiecewiseLinearCurve
 import time
+import datetime
 
 """
 0.1 s und eng gespannt: reisst immer
@@ -44,7 +45,7 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 0.03  # 0.5 is in the rather fast side! 0.05
+BLADE_SPEED_MMS = 0.035  # 0.5 is in the rather fast side! 0.05
 
 l0 = 100.0
 l1 = 162.5
@@ -102,11 +103,13 @@ def deg_to_arclength(deg: float, radius: float) -> float:
     return rad * radius
 
 
-curve = PiecewiseLinearCurve(COUNTERCLOCKWISE_CURVE, 10.0)  # note: was 10
+curve = PiecewiseLinearCurve(STRAIGHT_CURVE, 10.0)  # note: was 10
 print(curve.end)
 
+a = time.time()
 print(f'Part length: {curve.end:.1f} [mm]')
 print(f'ETA: {curve.end/BLADE_SPEED_MMS/60:.1f} [minutes]')
+print(f'Start: {str(datetime.datetime.now())}')
 
 z_axis = Axis(Z_AXIS, FULL_TURN/PITCH)
 phi_axis = Axis(PHI)
@@ -158,6 +161,9 @@ def main():
     z_axis.stop()
     phi_axis.stop()
 
+    print(f'Stop: {str(datetime.datetime.now())}')
+    b = time.time()
+    print(f'Duration: {b - a}')
     print('DONE')
 
 

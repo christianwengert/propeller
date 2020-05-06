@@ -62,7 +62,7 @@ total_length = second_slope_end + l0 + extra
 
 STRAIGHT_CURVE = [
     (0.0, 0.0),
-    (600.0, 0.0)
+    (800.0, 0.0)
 ]
 
 CLOCKWISE_CURVE = [  # gesehen als draufsicht auf motor motor aus
@@ -104,7 +104,7 @@ def deg_to_arclength(deg: float, radius: float) -> float:
     return rad * radius
 
 
-curve = PiecewiseLinearCurve(CLOCKWISE_CURVE, 10.0)  # note: was 10
+curve = PiecewiseLinearCurve(COUNTERCLOCKWISE_CURVE, 10.0)  # note: was 10
 print(curve.end)
 
 a = time.time()
@@ -182,7 +182,7 @@ def main():
 
     phi_axis._socket.sendall(reset_pos_ticket)
     phi_axis.drive(20 * BLADE_SPEED_MMS, CURRENT)
-    while phi_axis.status.position < 180 + 360.0:
+    while phi_axis.status.position < 360.0:
         sleep(0.01)
     phi_axis.stop()
 

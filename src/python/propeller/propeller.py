@@ -7,6 +7,7 @@ from src.python.propeller.axis import Axis
 from src.python.propeller.curve import PiecewiseLinearCurve
 import time
 import datetime
+from src.python.propeller.tickets import create_system_ticket
 
 """
 0.1 s und eng gespannt: reisst immer
@@ -45,11 +46,11 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 0.035  # 0.5 is in the rather fast side! 0.05
+BLADE_SPEED_MMS = 2.5  #0.035  # 0.5 is in the rather fast side! 0.05
 
 l0 = 100.0
 l1 = 162.5
-extra = 5
+extra = 0
 
 first_slope_start = l0 + extra
 first_slope_end = first_slope_start + l1
@@ -64,7 +65,7 @@ STRAIGHT_CURVE = [
     (600.0, 0.0)
 ]
 
-CLOCKWISE_CURVE = [
+CLOCKWISE_CURVE = [  # gesehen als draufsicht auf motor motor aus
     (0.0, 0.0),
     (first_slope_start, 0.0),
     (first_slope_end, 90.0),
@@ -103,7 +104,7 @@ def deg_to_arclength(deg: float, radius: float) -> float:
     return rad * radius
 
 
-curve = PiecewiseLinearCurve(STRAIGHT_CURVE, 10.0)  # note: was 10
+curve = PiecewiseLinearCurve(CLOCKWISE_CURVE, 10.0)  # note: was 10
 print(curve.end)
 
 a = time.time()
@@ -118,6 +119,24 @@ phi_axis = Axis(PHI)
 def main():
 
     must_reset = False
+
+    # set to zero
+    z_axis.drive(BLADE_SPEED_MMS, CURRENT)
+    while z_axis.status.position < 5:
+        sleep(0.01)
+    z_axis.stop()
+    phi_axis.drive(20 * BLADE_SPEED_MMS, CURRENT)
+    while phi_axis.status.position < 360.0:
+        sleep(0.01)
+    phi_axis.stop()
+    # reset to zero
+    reset_pos_ticket = create_system_ticket(mode=2)
+
+    phi_axis._socket.sendall(reset_pos_ticket)
+    z_axis._socket.sendall(reset_pos_ticket)
+    # phi_axis.reset(phi_axis.status.position)
+    # z_axis.reset(z_axis.status.position)
+
 
     z = 0.0
     phi = 0.0
@@ -159,6 +178,12 @@ def main():
 
     print(time.time() - start)
     z_axis.stop()
+    phi_axis.stop()
+
+    phi_axis._socket.sendall(reset_pos_ticket)
+    phi_axis.drive(20 * BLADE_SPEED_MMS, CURRENT)
+    while phi_axis.status.position < 180 + 360.0:
+        sleep(0.01)
     phi_axis.stop()
 
     print(f'Stop: {str(datetime.datetime.now())}')

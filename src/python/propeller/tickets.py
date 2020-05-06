@@ -9,7 +9,7 @@ def create_control_ticket(mode: int, pos: int, speed: int, current=600.0, acc=20
 
 def create_system_ticket(mode: int) -> bytes:
 
-    ticket = f'<system mode="{mode}" />'
+    ticket = f'<system mode="{mode}" a="1" b="2" c="3" />'
     return ticket.encode(encoding='utf-8')
 
 

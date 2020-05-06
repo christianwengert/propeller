@@ -46,7 +46,7 @@ PHI = "192.168.178.12"
 DIAMETER_MM = 45.0
 RADIUS_MM = DIAMETER_MM / 2.0
 
-BLADE_SPEED_MMS = 2.5  #0.035  # 0.5 is in the rather fast side! 0.05
+BLADE_SPEED_MMS = 0.035  # 0.5 is in the rather fast side! 0.05
 
 l0 = 100.0
 l1 = 162.5
@@ -136,7 +136,6 @@ def main():
     z_axis._socket.sendall(reset_pos_ticket)
     # phi_axis.reset(phi_axis.status.position)
     # z_axis.reset(z_axis.status.position)
-
 
     z = 0.0
     phi = 0.0
